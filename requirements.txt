@@ -1,0 +1,4 @@
+# Core pipeline (simulator, engine, offline agents) needs only the Python standard library.
+# Needed for the Microsoft Foundry backend:
+openai>=1.40
+azure-identity>=1.17

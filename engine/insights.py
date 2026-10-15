@@ -204,8 +204,9 @@ class MatchEngine:
                       data={"xg": ev["xg"], "distance_m": ev["distance_m"], "outcome": ev["outcome"],
                             "shot_speed_kmh": ev["shot_speed_kmh"]},
                       why=(f"A shot from {ev['distance_m']} m with {ev['defenders_close']} defender(s) close is "
-                           f"converted about {round(ev['xg'] * 100)}% of the time; it came after a "
-                           f"{n_pass}-pass move."),
+                           f"converted about {round(ev['xg'] * 100)}% of the time; " +
+                           (f"it came after a {n_pass}-pass move." if n_pass >= 2 else
+                            "it came from a quick turnover or individual run.")),
                       evidence=chain_ids, metrics={"xg": ev["xg"], "chain_passes": n_pass})
         if ev["shot_speed_kmh"] >= SHOT_SPEED_KMH:
             self._cue("speed", self.t, f"Shot speed: {ev['shot_speed_kmh']} km/h ({ev['player_name']})",
@@ -222,7 +223,8 @@ class MatchEngine:
         opp = self.opp(team)
         mom_against = (self.momentum < -0.25 and team == self.teams[0]) or (self.momentum > 0.25 and team == self.teams[1])
         xg = shot["xg"] if shot else ev.get("xg", 0)
-        why = (f"{'Against the run of play: a' if mom_against else 'A'} {n_pass}-pass move finished from a "
+        move = f"{n_pass}-pass move" if n_pass >= 2 else "quick break"
+        why = (f"{'Against the run of play: a' if mom_against else 'A'} {move} finished from a "
                f"{xg:.2f} xG chance")
         why += " (a low-probability finish)." if xg < 0.12 else "."
         assist = next((e for e in reversed(chain) if e["type"] == "pass" and e["outcome"] == "complete"), None)
@@ -340,7 +342,7 @@ class MatchEngine:
                                   why="Distance covered shows work rate, and 10 km is a typical full-match benchmark.")
             if v >= SPRINT_MS and t - self._last_sprint.get(pid, -1e9) > SPRINT_COOLDOWN:
                 self._last_sprint[pid] = t
-                record = v > self.match_top_speed and self.match_top_speed > 0
+                record = v > self.match_top_speed + 0.05 and t > 600
                 self.match_top_speed = max(self.match_top_speed, v)
                 if record:
                     self._cue("player_tag", t,

@@ -15,7 +15,7 @@ timed overlay cues, live narratives and recaps, personalised for every fan, wher
 | **b. Interpret** | Stats, patterns, context | `engine/insights.py`: possession, pass quality, xG, pressing, momentum, distance, speed | ✅ |
 | **c. Explain** | Why a moment matters | Every cue carries `explain.why` + `evidence_event_ids` + metrics | ✅ |
 | **d. Render** | On-screen, timed, machine-readable | Overlay cue JSON (`t_in`/`t_out`, priority, kind) + web overlay UI | ✅ cues · 🚧 UI |
-| **e. Personalise** | Analyst vs casual fan, club, player focus, language | Multi-agent layer on Microsoft Foundry | 🚧 |
+| **e. Personalise** | Analyst vs casual fan, club, player focus, language | `agents/`: Personaliser, Narrator, Verifier, RecapWriter, Localiser on Microsoft Foundry | ✅ offline · 🚧 Foundry live test |
 
 ## What the engine detects
 
@@ -63,15 +63,52 @@ python -m scripts.evaluate
 
 High-press phases cover about 20% of match time, so a random detector would score roughly 20% precision. Our pressure-surge explanations are right about 2.5× more often than chance. We publish the evaluation so the number can be improved, not just claimed.
 
+## The agent team
+
+```
+engine cue ──► Personaliser ──► Narrator ──► Verifier ──► Localiser ──► Verifier ──► on-screen feed
+                (what this         (how it's     (no new numbers,   (any language,    (names/numbers
+                 viewer sees)       said)         units or players)  names kept)       survived?)
+half / full time ──► RecapWriter ──► Verifier ──► Localiser ──► recap
+```
+
+| Agent | Role |
+|---|---|
+| **Personaliser** | Filters and paces cues per viewer; adds periodic player cards and metric tickers |
+| **Narrator** | Rewrites a grounded cue for the viewer's mode and club allegiance (Foundry model, or templates offline) |
+| **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, and every named player must be in the facts. Failures are replaced by a safe template, so a hallucination never reaches air |
+| **RecapWriter** | Half-time and full-time recaps, casual or analytical |
+| **Localiser** | Azure AI Translator (or the model), then re-verified so names and numbers survive translation |
+
+### Viewer modes (same match, different experiences)
+
+| Mode | Example |
+|---|---|
+| `casual` | *"GOAL! Elias Castell scores for Northgate!"* (paced, jargon-free, about 16 items per match) |
+| `analyst` | *"Momentum swings to NGC. In the last 5 minutes NGC have 8 final-third entries and 0.28 xG vs 3 and 0.01 for RVA."* (about 86 items) |
+| `player_focus` | *"Elias Castell, 30': 44 passes (84.1%), 2 shots, 0.32 xG, 2 tackles won, 3.64 km, top speed 32.0 km/h."* |
+| `metric` | *"xG at 30': Riverside 0.29, Northgate 0.43."* (one number the viewer cares about) |
+| favourite club | *"Get in! GOAL! …"* vs *"Oh no. GOAL! …"* |
+| language | any BCP-47 code, e.g. `--lang es` |
+
+```bash
+python -m agents.run data/match_001                                         # 3 preset viewers
+python -m agents.run data/match_001 --mode player_focus --player "Elias Castell"
+python -m agents.run data/match_001 --mode metric --metric xg --club NGC
+MATCHROOM_BACKEND=foundry python -m agents.run data/match_001 --lang es     # live model (see .env.example)
+```
+
+Feeds land in `data/<match>/feeds/<viewer>.jsonl`. Each item has timing, text, language, a `verified` flag, and evidence event IDs.
+
 ## Quick start
 
-No dependencies beyond Python 3.10+.
+The core pipeline needs only Python 3.10+. For the Foundry backend, run `pip install -r requirements.txt` and copy `.env.example` to `.env`.
 
 ```bash
 python -m simulator.sim --seed 7 --out data/match_001     # generate a match
 python -m engine.replay data/match_001                    # run it through the engine, print cues
 python -m engine.replay data/match_001 --speed 30         # "live" at 30x real time
-python -m unittest -v                                     # tests, incl. the evidence-grounding contract
+python -m unittest -v                                     # tests: evidence grounding + hallucination blocking
 python -m scripts.evaluate                                # explainability vs ground truth
 ```
 
@@ -101,7 +138,8 @@ Design principle: **the engine computes, the agents communicate.** LLM agents ne
 - [x] Synthetic simulator with tracking and ground truth
 - [x] Real-time insights engine with explainable, evidence-linked cues
 - [x] Tests and ground-truth evaluation
-- [ ] Foundry agents: Narrator, Recap Writer, Personaliser, Localiser, Verifier
+- [x] Agent team: Personaliser, Narrator, Verifier, RecapWriter, Localiser (offline mode + Foundry backend)
+- [ ] Live Foundry run and prompt tuning
 - [ ] Live web overlay UI with player-focus mode and clickable evidence
 - [ ] Azure deployment (Bicep / `azd up`), Event Hubs, Fabric RTI, App Insights tracing
 - [ ] Demo video

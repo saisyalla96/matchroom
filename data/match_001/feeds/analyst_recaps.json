@@ -1,0 +1,20 @@
+[
+  {
+    "t": 2738.7,
+    "label": "Half-time",
+    "text": "Half-time: Riverside 0-1 Northgate. 24' Elias Castell scored. Possession 44.8% to 55.2%. xG 0.31 to 0.43 from 4 and 3 shots. Pass accuracy 76.9% vs 82.9%. Pressures 250 vs 118. Key shift: Momentum swings to RVA (44'). In the last 5 minutes RVA have 15 final-third entries and 0.00 xG vs 8 and 0.00 for NGC.",
+    "lang": "en",
+    "verified": true,
+    "fallback": false,
+    "issues": []
+  },
+  {
+    "t": 5475.0,
+    "label": "Full-time",
+    "text": "Full-time: Riverside 1-2 Northgate. 24' Elias Castell scored. 48' Ezra Quill scored. 68' Idris Lindqvist scored. Possession 49.1% to 50.9%. xG 0.81 to 0.75 from 10 and 6 shots. Pass accuracy 80.3% vs 82.8%. Pressures 475 vs 232. Key shift: Momentum swings to RVA (83'). In the last 5 minutes RVA have 10 final-third entries and 0.00 xG vs 5 and 0.00 for NGC.",
+    "lang": "en",
+    "verified": true,
+    "fallback": false,
+    "issues": []
+  }
+]
