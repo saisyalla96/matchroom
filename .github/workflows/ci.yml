@@ -1,0 +1,16 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest -v
+      - name: Generate + replay a match
+        run: |
+          python -m simulator.sim --seed 7 --out /tmp/m
+          python -m engine.replay /tmp/m --quiet
