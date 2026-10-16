@@ -269,9 +269,18 @@ class Narrator:
     def __init__(self, llm: LLM, teams: dict):
         self.llm, self.teams = llm, teams
 
+    def _names(self, text: str) -> str:
+        """Team codes (RVA) -> broadcast names (Riverside) so the model never copies codes."""
+        for code, name in self.teams.items():
+            text = re.sub(rf"\b{re.escape(code)}\b", name, text)
+        return text
+
     def facts(self, cue):
-        return {k: cue[k] for k in ("kind", "clock", "team", "player_name", "headline", "data")} | {
-            "why": cue["explain"]["why"]}
+        f = {k: cue[k] for k in ("kind", "clock", "team", "player_name", "data")}
+        f["team"] = self.teams.get(cue.get("team"), cue.get("team"))
+        f["headline"] = self._names(cue["headline"])
+        f["why"] = self._names(cue["explain"]["why"])
+        return f
 
     @staticmethod
     def perspective(cue: dict, p: Profile) -> str:
@@ -290,6 +299,9 @@ class Narrator:
         return self.template(cue, p), "en"
 
     def template(self, cue: dict, p: Profile) -> str:
+        return self._names(self._template(cue, p))
+
+    def _template(self, cue: dict, p: Profile) -> str:
         k, d = cue["kind"], cue["data"]
         team = self.teams.get(cue.get("team"), cue.get("team") or "")
         who = cue.get("player_name") or ""

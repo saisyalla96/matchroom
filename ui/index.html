@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matchroom Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#0F1B2D; --panel:#15253B; --panel-2:#1B2E49; --line:#284563;
+  --ink:#EAF1F8; --dim:#93A9C4; --faint:#5F7A99;
+  --grass:#1D563C; --grass-2:#215F43; --chalk:rgba(235,245,240,.55);
+  --flood:#FFC845;            /* floodlight amber: evidence + focus */
+  --home:#3B7BDA; --away:#E2434B;
+  --ok:#5FD39A; --warn:#F2A33A;
+  --display:"Barlow Condensed", "Arial Narrow", sans-serif;
+  --body:"Barlow", system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--night);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--flood);outline-offset:2px}
+
+/* ---------- top bar ---------- */
+.bar{display:flex;align-items:center;gap:20px;padding:12px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.01em;line-height:1}
+.brand small{display:block;font-family:var(--body);font-weight:500;font-size:12px;color:var(--dim);letter-spacing:0;margin-top:3px}
+.viewers{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:10px;flex-wrap:wrap;margin-left:auto}
+.viewers button{background:none;border:0;padding:7px 12px;border-radius:7px;cursor:pointer;color:var(--dim);font-weight:500;white-space:nowrap}
+.viewers button[aria-selected="true"]{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 -2px 0 var(--flood)}
+.viewers button:hover{color:var(--ink)}
+
+/* ---------- layout ---------- */
+main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding:20px;max-width:1500px;margin:0 auto}
+@media (max-width:1020px){main{grid-template-columns:1fr}}
+
+/* ---------- pitch + broadcast graphics ---------- */
+.stage{position:relative;border-radius:14px;overflow:hidden;background:var(--grass);aspect-ratio:105/68}
+canvas{display:block;width:100%;height:100%}
+.scorebug{position:absolute;top:14px;left:14px;display:flex;align-items:stretch;font-family:var(--display);font-weight:700;
+  border-radius:6px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.scorebug .club{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#0C1626;font-size:20px;letter-spacing:.04em}
+.scorebug .club i{width:5px;align-self:stretch;margin:-6px 0 -6px -12px}
+.scorebug .score{background:var(--ink);color:var(--night);padding:6px 12px;font-size:22px;min-width:64px;text-align:center}
+.scorebug .clock{background:#0C1626;color:var(--flood);padding:6px 12px;font-size:20px;min-width:56px;text-align:center}
+.phase{position:absolute;top:14px;right:14px;font-family:var(--display);font-weight:600;font-size:15px;padding:5px 10px;border-radius:5px;
+  background:rgba(12,22,38,.82);color:var(--dim)}
+.phase[data-regime="chaos"]{color:var(--warn)} .phase[data-regime="control"]{color:var(--ok)}
+.lower-third{position:absolute;left:14px;right:14px;bottom:14px;display:flex;align-items:stretch;max-width:760px;
+  background:rgba(10,19,33,.92);border-radius:8px;overflow:hidden;transform:translateY(calc(100% + 24px));visibility:hidden;
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),visibility 0s .45s}
+.lower-third.show{transform:none;visibility:visible;transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.lower-third .tag{background:var(--flood);color:#1B1400;font-family:var(--display);font-weight:700;font-size:16px;padding:10px 12px;
+  display:flex;align-items:center;white-space:nowrap}
+.lower-third .msg{padding:10px 14px;font-size:16px;font-weight:500}
+.lower-third .msg small{display:block;color:var(--dim);font-size:13px;font-weight:400;margin-top:2px}
+@media (prefers-reduced-motion:reduce){.lower-third,.lower-third.show{transition:none}}
+@media (max-width:640px){
+  .scorebug{top:8px;left:8px}.scorebug .club,.scorebug .clock{font-size:15px;padding:4px 8px}.scorebug .score{font-size:16px;padding:4px 8px;min-width:48px}
+  .phase{display:none}.lower-third{left:8px;right:8px;bottom:8px}.lower-third .tag{font-size:13px;padding:6px 8px}
+  .lower-third .msg{font-size:13px;padding:6px 10px}.viewers{margin-left:0}}
+
+/* ---------- under the pitch ---------- */
+.below{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+@media (max-width:700px){.below{grid-template-columns:1fr}}
+.panel{background:var(--panel);border-radius:12px;padding:16px 18px}
+.panel h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0 0 10px;letter-spacing:.01em}
+.panel p.note{margin:0 0 10px;color:var(--dim);font-size:13px}
+.ribbon{width:100%;height:96px;display:block}
+.stat{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:10px;margin:9px 0}
+.stat .v{font-family:var(--display);font-weight:600;font-size:18px}
+.stat .v:last-child{text-align:right}
+.stat .mid{display:flex;flex-direction:column;gap:4px}
+.stat .lbl{text-align:center;font-size:13px;color:var(--dim)}
+.stat .bars{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--line)}
+.stat .bars span{display:block;height:100%;transition:width .6s}
+
+/* ---------- feed ---------- */
+aside{display:flex;flex-direction:column;min-height:0}
+.feed-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+.feed-head h2{font-family:var(--display);font-weight:600;font-size:21px;margin:0}
+.feed-head span{color:var(--dim);font-size:13px;text-align:right}
+.feed{display:flex;flex-direction:column;gap:8px;overflow:auto;max-height:calc(100vh - 230px);padding-right:4px}
+@media (max-width:1020px){.feed{max-height:none}}
+.item{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid transparent;border-radius:10px;padding:10px 12px;cursor:pointer}
+.item:hover{border-color:var(--line)}
+.item[aria-expanded="true"]{border-color:var(--flood);background:var(--panel-2)}
+.item .row{display:flex;gap:10px;align-items:flex-start}
+.item .min{font-family:var(--display);font-weight:600;font-size:17px;color:var(--dim);min-width:30px}
+.item .txt{flex:1}
+.item .club-dot{width:8px;height:8px;border-radius:50%;margin-top:7px;flex:none}
+.item.goal .min{color:var(--flood)}
+.item.goal .txt{font-weight:600}
+.item .more{display:none;margin:8px 0 0 40px;font-size:13.5px;color:var(--dim)}
+.item[aria-expanded="true"] .more{display:block}
+.item .more b{color:var(--ink);font-weight:600}
+.item .check{display:inline-flex;gap:6px;align-items:center;margin-top:6px;color:var(--ok)}
+.item .check.fb{color:var(--warn)}
+.recap{background:linear-gradient(180deg,var(--panel-2),var(--panel));border-left:3px solid var(--flood);border-radius:10px;padding:12px 14px}
+.recap h3{font-family:var(--display);font-weight:600;font-size:18px;margin:0 0 6px}
+.recap p{margin:0}
+.empty{color:var(--dim);padding:20px 4px}
+
+/* ---------- controls + status ---------- */
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{background:var(--panel-2)}
+select.btn{appearance:none;padding-right:12px;color:var(--ink);background:var(--panel)}
+select.btn option{background:var(--panel);color:var(--ink)}
+.status{margin-left:auto;color:var(--dim);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
+.status b{color:var(--ink);font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">Matchroom<small id="fixture">Loading match…</small></div>
+  <nav class="viewers" role="tablist" aria-label="Choose a viewer" id="viewers"></nav>
+</header>
+
+<main>
+  <section aria-label="Live match">
+    <div class="stage" id="stage">
+      <canvas id="pitch" aria-label="Live pitch view"></canvas>
+      <div class="scorebug" id="scorebug" aria-live="polite"></div>
+      <div class="phase" id="phase" data-regime="balanced">Balanced</div>
+      <div class="lower-third" id="l3" aria-hidden="true"><div class="tag" id="l3tag"></div><div class="msg" id="l3msg"></div></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="play">Pause</button>
+      <label class="sr" for="speed">Replay speed</label>
+      <select class="btn" id="speed">
+        <option value="10">10× speed</option><option value="20" selected>20× speed</option>
+        <option value="40">40× speed</option><option value="80">80× speed</option>
+      </select>
+      <button class="btn" id="restart">Restart match</button>
+      <button class="btn" id="newmatch">Generate a new match</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="below">
+      <div class="panel">
+        <h2>Who's on top</h2>
+        <p class="note">Momentum each minute, from chances, final-third entries and pressing.</p>
+        <svg class="ribbon" id="ribbon" viewBox="0 0 96 40" preserveAspectRatio="none" role="img" aria-label="Momentum by minute"></svg>
+      </div>
+      <div class="panel">
+        <h2>Match stats</h2>
+        <div id="stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside aria-label="Personalised feed">
+    <div class="feed-head"><h2 id="feedTitle">Feed</h2><span id="feedSub"></span></div>
+    <div class="feed" id="feed"><p class="empty">Kick-off is moments away. Moments that matter will appear here.</p></div>
+  </aside>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const KIND_TAG = {goal:"Goal", big_chance:"Big chance", momentum_swing:"Momentum", game_state:"Game state",
+  pressure_surge:"Pressing", key_pass:"Key pass", speed:"Shot speed", player_tag:"Player", milestone:"Milestone",
+  player_card:"Player card", metric_ticker:"xG tracker"};
+const MODE_SUB = {casual:"Paced, plain-language moments", analyst:"Every insight, with the numbers",
+  player_focus:"Everything involving one player", metric:"One number, tracked all match"};
+
+let META=null, active="casual", cursors={}, rcursors={}, store={}, recaps={}, selected=null, state=null;
+let players={}, targets={}, ballT=null, ball=null, l3Queue=[], l3Busy=false, lastRender="";
+
+/* ---------- boot ---------- */
+async function boot(){
+  META = await (await fetch("/api/meta")).json();
+  document.documentElement.style.setProperty("--home", lighten(META.home.colour));
+  document.documentElement.style.setProperty("--away", lighten(META.away.colour));
+  COL={[META.home.id]:lighten(META.home.colour), [META.away.id]:lighten(META.away.colour)};
+  $("#fixture").textContent = `${META.home.name} v ${META.away.name}, ${META.venue}`;
+  const nav = $("#viewers"); nav.innerHTML="";
+  Object.entries(META.profiles).forEach(([k,p])=>{
+    store[k]=store[k]||[]; recaps[k]=recaps[k]||[]; cursors[k]=cursors[k]||0; rcursors[k]=rcursors[k]||0;
+    const b=document.createElement("button"); b.role="tab"; b.textContent=p.name; b.dataset.k=k;
+    b.setAttribute("aria-selected", k===active); b.onclick=()=>{active=k; selected=null; l3Queue=[]; nav.querySelectorAll("button")
+      .forEach(x=>x.setAttribute("aria-selected", x.dataset.k===k)); renderFeed(true);};
+    nav.appendChild(b);
+  });
+  players={};
+  for (const [tid,lu] of Object.entries(META.lineups)) lu.forEach(p=>players[p.id]={...p, team:tid});
+  renderFeed(true);
+}
+function lighten(hex){ // club colours are print colours; lift them so they read on a night background
+  const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255, f=.28;
+  return `rgb(${Math.round(r+(255-r)*f)},${Math.round(g+(255-g)*f)},${Math.round(b+(255-b)*f)})`;
+}
+const teamColour = t => t===META.home.id ? "var(--home)" : t===META.away.id ? "var(--away)" : "var(--faint)";
+let COL={};
+const teamHex = t => COL[t];
+
+/* ---------- polling ---------- */
+async function poll(){
+  try{
+    const r = await fetch(`/api/state?c=${encodeURIComponent(JSON.stringify(cursors))}&r=${encodeURIComponent(JSON.stringify(rcursors))}`);
+    const s = await r.json();
+    if (s.ready){ state=s; apply(s); }
+  }catch(e){ $("#status").innerHTML = "<span>Connection lost. Is the server still running?</span>"; }
+  setTimeout(poll, 350);
+}
+function apply(s){
+  let changed=false;
+  for (const [k,items] of Object.entries(s.feeds)){
+    if (!items.length) continue;
+    store[k].push(...items); cursors[k]+=items.length; changed = changed || k===active;
+    if (k===active) items.filter(i=>i.priority<=2).forEach(i=>l3Queue.push(i));
+  }
+  for (const [k,rs] of Object.entries(s.recaps)){
+    if (!rs.length) continue;
+    recaps[k].push(...rs); rcursors[k]+=rs.length; changed = changed || k===active;
+  }
+  if (s.frame){
+    s.frame.players.forEach(p=>targets[p.id]=p);
+    ballT=s.frame.ball; if(!ball) ball={...ballT};
+  }
+  renderScore(s); renderStats(s); renderRibbon(s); renderStatus(s);
+  $("#play").textContent = s.paused ? "Resume" : "Pause";
+  if (changed) renderFeed();
+  runLowerThird();
+}
+
+/* ---------- scorebug, phase, status ---------- */
+function renderScore(s){
+  const h=META.home, a=META.away;
+  $("#scorebug").innerHTML =
+    `<div class="club"><i style="background:var(--home)"></i>${h.id}</div>`+
+    `<div class="score">${s.score[h.id]} – ${s.score[a.id]}</div>`+
+    `<div class="club">${a.id}<i style="background:var(--away);margin:-6px -12px -6px 0"></i></div>`+
+    `<div class="clock">${s.finished?"FT":s.clock}</div>`;
+  const ph=$("#phase"); ph.dataset.regime=s.regime;
+  ph.textContent = {chaos:"Chaos phase", control:"Control phase", balanced:"Balanced"}[s.regime];
+}
+function renderStatus(s){
+  const m=s.model;
+  const src = m.backend==="foundry" ? `Microsoft Foundry, <b>${m.calls}</b> model calls` : "Offline templates";
+  $("#status").innerHTML = `<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, <b>${m.verifier_blocked}</b> blocked</span>`;
+}
+
+/* ---------- stats ---------- */
+function renderStats(s){
+  const h=s.teams[META.home.id], a=s.teams[META.away.id];
+  const rows=[["Possession", h.possession_pct, a.possession_pct, "%"],["Expected goals (xG)", h.xg, a.xg, ""],
+    ["Shots", h.shots, a.shots, ""],["On target", h.on_target, a.on_target, ""],
+    ["Pass accuracy", h.pass_accuracy_pct, a.pass_accuracy_pct, "%"],["Line-breaking passes", h.line_breaking_passes, a.line_breaking_passes, ""],
+    ["Pressures", h.pressures, a.pressures, ""]];
+  $("#stats").innerHTML = rows.map(([l,x,y,u])=>{
+    const t=(+x)+(+y)||1, px=100*x/t;
+    return `<div class="stat"><span class="v">${x}${u}</span><div class="mid"><span class="lbl">${l}</span>
+      <div class="bars"><span style="width:${px}%;background:var(--home)"></span><span style="width:${100-px}%;background:var(--away)"></span></div></div>
+      <span class="v">${y}${u}</span></div>`;}).join("");
+}
+
+/* ---------- momentum ribbon ---------- */
+function renderRibbon(s){
+  const tl=s.timeline; if(!tl.length) return;
+  let out=`<line x1="0" y1="20" x2="96" y2="20" stroke="#284563" stroke-width=".3"/>`+
+          `<line x1="45" y1="1" x2="45" y2="39" stroke="#5F7A99" stroke-width=".25" stroke-dasharray="1 1"/>`;
+  tl.forEach(p=>{
+    const v=Math.max(-1,Math.min(1,p.v)), h=Math.abs(v)*18;
+    out+=`<rect x="${p.m}" y="${v>=0?20-h:20}" width=".8" height="${Math.max(h,.2)}" fill="${v>=0?"var(--home)":"var(--away)"}"/>`;
+  });
+  $("#ribbon").innerHTML=out;
+}
+
+/* ---------- feed ---------- */
+function esc(t){return String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function renderFeed(reset){
+  if(!META) return;
+  const p=META.profiles[active];
+  $("#feedTitle").textContent=p.name;
+  $("#feedSub").textContent=MODE_SUB[p.mode]+(p.language!=="en"?`, in ${new Intl.DisplayNames(["en"],{type:"language"}).of(p.language)}`:"");
+  const items=(store[active]||[]).map((it,i)=>({...it,_i:i,_type:"item"}));
+  const rs=(recaps[active]||[]).map(r=>({...r,_type:"recap"}));
+  const all=[...items,...rs].sort((x,y)=>y.t-x.t || (y._type==="recap")-(x._type==="recap"));
+  const key=active+all.length+selected;
+  if(key===lastRender && !reset) return; lastRender=key;
+  if(!all.length){ $("#feed").innerHTML=`<p class="empty">Kick-off is moments away. Moments that matter will appear here.</p>`; return; }
+  $("#feed").innerHTML = all.map(it=>{
+    if(it._type==="recap") return `<div class="recap"><h3>${esc(it.label)} recap</h3><p lang="${esc(it.lang)}">${esc(it.text)}</p></div>`;
+    const n=(it.evidence||[]).length, open=selected===it._i;
+    const check = it.fallback ? `<span class="check fb">Model text failed a check, so a safe template was shown</span>`
+      : `<span class="check">Checked against the facts${n?`, ${n} match event${n>1?"s":""} behind it`:""}</span>`;
+    return `<button class="item ${it.kind==="goal"?"goal":""}" data-i="${it._i}" aria-expanded="${open}">
+      <div class="row"><span class="min">${esc(it.clock)}</span><span class="club-dot" style="background:${teamColour(it.team)}"></span>
+      <span class="txt" lang="${esc(it.lang)}">${esc(it.text)}</span></div>
+      <div class="more"><b>Why it matters:</b> ${esc(it.why)}<br>${check}${n?"<br>Supporting events are lit up on the pitch.":""}</div></button>`;
+  }).join("");
+  $("#feed").querySelectorAll(".item").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i; selected = selected===i?null:i; renderFeed(true);});
+}
+
+/* ---------- lower third ---------- */
+function runLowerThird(){
+  if(l3Busy || !l3Queue.length) return;
+  const it=l3Queue.shift();
+  if(state && state.t - it.t > 240){ return runLowerThird(); } // stale, skip
+  l3Busy=true;
+  $("#l3tag").textContent = `${it.clock} ${KIND_TAG[it.kind]||"Insight"}`;
+  $("#l3msg").innerHTML = `<span lang="${esc(it.lang)}">${esc(it.text)}</span>`;
+  $("#l3").classList.add("show");
+  setTimeout(()=>{$("#l3").classList.remove("show"); setTimeout(()=>{l3Busy=false; runLowerThird();},500);}, 5200);
+}
+
+/* ---------- pitch ---------- */
+const cv=$("#pitch"), ctx=cv.getContext("2d");
+function resize(){const r=cv.getBoundingClientRect(), d=devicePixelRatio||1; cv.width=r.width*d; cv.height=r.height*d;}
+addEventListener("resize",resize);
+const SX=()=>cv.width/105, SY=()=>cv.height/68;
+const P=(x,y)=>[x*SX(), y*SY()];
+function drawPitch(){
+  const w=cv.width,h=cv.height, s=SX();
+  for(let i=0;i<12;i++){ctx.fillStyle=i%2?"#1D563C":"#215F43"; ctx.fillRect(i*w/12,0,w/12+1,h);}
+  ctx.strokeStyle="rgba(235,245,240,.5)"; ctx.lineWidth=Math.max(1.2,s*.18);
+  const line=(pts)=>{ctx.beginPath(); pts.forEach(([x,y],i)=>{const [a,b]=P(x,y); i?ctx.lineTo(a,b):ctx.moveTo(a,b)}); ctx.stroke();};
+  line([[1,1],[104,1],[104,67],[1,67],[1,1]]); line([[52.5,1],[52.5,67]]);
+  ctx.beginPath(); ctx.arc(...P(52.5,34), 9.15*s, 0, 7); ctx.stroke();
+  for(const side of [0,1]){
+    const x0=side?104:1, d=side?-1:1;
+    line([[x0,13.84],[x0+16.5*d,13.84],[x0+16.5*d,54.16],[x0,54.16]]);
+    line([[x0,24.84],[x0+5.5*d,24.84],[x0+5.5*d,43.16],[x0,43.16]]);
+    ctx.fillStyle="rgba(235,245,240,.7)"; ctx.beginPath(); ctx.arc(...P(x0+11*d,34), s*.35, 0, 7); ctx.fill();
+  }
+}
+function arrow(x1,y1,x2,y2,col,width,dash){
+  const [a,b]=P(x1,y1),[c,d]=P(x2,y2), s=SX();
+  ctx.strokeStyle=col; ctx.lineWidth=width; ctx.setLineDash(dash||[]);
+  ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); ctx.setLineDash([]);
+  const ang=Math.atan2(d-b,c-a), L=s*1.6;
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(c,d);
+  ctx.lineTo(c-L*Math.cos(ang-.45), d-L*Math.sin(ang-.45)); ctx.lineTo(c-L*Math.cos(ang+.45), d-L*Math.sin(ang+.45)); ctx.fill();
+}
+function drawEvidence(it){
+  const s=SX(), gold="#FFC845";
+  (it.evidence||[]).forEach((e,i,arr)=>{
+    if(e.x==null) return;
+    const strong = i>=arr.length-3;
+    if((e.type==="pass"||e.type==="carry") && e.end_x!=null) arrow(e.x,e.y,e.end_x,e.end_y, strong?gold:"rgba(255,200,69,.55)", s*(strong?.45:.3), e.type==="carry"?[s,s*.8]:null);
+    else if(e.type==="shot"){ arrow(e.x,e.y,e.end_x,e.end_y,gold,s*.55);
+      ctx.strokeStyle=gold; ctx.lineWidth=s*.3; ctx.beginPath(); ctx.arc(...P(e.x,e.y), s*1.3,0,7); ctx.stroke(); }
+    else if(e.type==="pressure"){ ctx.strokeStyle="rgba(255,200,69,.7)"; ctx.lineWidth=s*.22; ctx.beginPath(); ctx.arc(...P(e.x,e.y), s*1.1,0,7); ctx.stroke(); }
+    else { ctx.fillStyle=gold; ctx.beginPath(); ctx.arc(...P(e.x,e.y), s*.55,0,7); ctx.fill(); }
+  });
+}
+function frame(){
+  if(!cv.width) resize();
+  drawPitch();
+  const sel = selected!=null ? store[active][selected] : null;
+  if(sel) drawEvidence(sel);
+  const s=SX(), k=.18, focus = META && META.profiles[active].mode==="player_focus" ? META.profiles[active].player_id : null;
+  const hilite = sel ? sel.player_id : null;
+  for(const [id,t] of Object.entries(targets)){
+    const p = players[id]; if(!p) continue;
+    p.x = p.x==null ? t.x : p.x+(t.x-p.x)*k; p.y = p.y==null ? t.y : p.y+(t.y-p.y)*k;
+    const [x,y]=P(p.x,p.y), r=s*1.05;
+    ctx.globalAlpha = sel && id!==hilite ? .55 : 1;
+    ctx.fillStyle = teamHex(p.team); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    ctx.lineWidth=s*.18; ctx.strokeStyle="rgba(10,18,30,.8)"; ctx.stroke();
+    ctx.fillStyle="#fff"; ctx.font=`600 ${Math.round(r*1.15)}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(p.number, x, y+r*.05);
+    if(id===focus || id===hilite){
+      ctx.globalAlpha=1; ctx.strokeStyle="#FFC845"; ctx.lineWidth=s*.3; ctx.beginPath(); ctx.arc(x,y,r*1.65,0,7); ctx.stroke();
+      const label=p.name, fs=Math.round(s*1.5); ctx.font=`600 ${fs}px Barlow, system-ui, sans-serif`;
+      const w=ctx.measureText(label).width+fs*.8; ctx.fillStyle="rgba(10,19,33,.9)";
+      ctx.fillRect(x-w/2, y-r*1.65-fs*1.7, w, fs*1.4); ctx.fillStyle="#FFC845"; ctx.fillText(label, x, y-r*1.65-fs);
+    }
+    ctx.globalAlpha=1;
+  }
+  if(ballT){ ball.x+= (ballT.x-ball.x)*.3; ball.y+=(ballT.y-ball.y)*.3;
+    const [x,y]=P(ball.x,ball.y); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x,y,s*.6,0,7); ctx.fill();
+    ctx.strokeStyle="#0C1626"; ctx.lineWidth=s*.12; ctx.stroke(); }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+const ctl = q => fetch("/api/control?"+q);
+$("#play").onclick=()=>ctl("action="+(state&&state.paused?"play":"pause"));
+$("#speed").onchange=e=>ctl("action=speed&value="+e.target.value);
+async function reset(action){
+  await ctl("action="+action);
+  cursors={}; rcursors={}; store={}; recaps={}; selected=null; targets={}; ballT=null; ball=null; l3Queue=[]; lastRender="";
+  $("#feed").innerHTML=`<p class="empty">Kick-off is moments away. Moments that matter will appear here.</p>`;
+  await boot();
+}
+$("#restart").onclick=()=>reset("restart");
+$("#newmatch").onclick=async e=>{e.target.textContent="Generating…"; await reset("new"); e.target.textContent="Generate a new match";};
+
+boot().then(()=>{resize(); requestAnimationFrame(frame); poll();});
+</script>
+</body>
+</html>

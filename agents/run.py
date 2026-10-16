@@ -98,6 +98,7 @@ class Orchestrator:
             "player_id": cue.get("player_id"), "text": self.narrator.template(cue, p), "lang": "en",
             "verified": None, "fallback": None, "issues": [],
             "evidence_event_ids": cue["explain"]["evidence_event_ids"], "data": cue["data"],
+            "why": self.narrator._names(cue["explain"]["why"]), "headline": self.narrator._names(cue["headline"]), "player_name": cue.get("player_name"),
         }
         self.feeds[k].append(item)  # placeholder keeps on-screen order; text is filled in when ready
 

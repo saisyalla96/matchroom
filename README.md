@@ -100,6 +100,21 @@ MATCHROOM_BACKEND=foundry python -m agents.run data/match_001 --lang es     # li
 
 Feeds land in `data/<match>/feeds/<viewer>.jsonl`. Each item has timing, text, language, a `verified` flag, and evidence event IDs.
 
+## Matchroom Studio (live web UI)
+
+```bash
+python -m ui.server                       # http://localhost:8000, offline templates
+python -m ui.server --backend foundry     # live Microsoft Foundry model
+```
+
+- **Live pitch** from the 1 Hz tracking stream, with a broadcast scorebug and game-phase chip
+- **Lower-third overlays** timed from the cue feed, as they would sit on a live match feed
+- **Viewer switcher**: casual fan, analyst, away-club fan in Spanish, player focus, xG tracker. One match, five experiences
+- **Clickable evidence**: select any insight to see *why it matters*, whether it passed the Verifier, and the actual passes, shots and pressures behind it drawn on the pitch
+- Momentum ribbon, live match stats, half-time and full-time recaps, replay speed, and a button to generate a fresh synthetic match
+
+Standard library only; no build step.
+
 ## Quick start
 
 The core pipeline needs only Python 3.10+. For the Foundry backend, run `pip install -r requirements.txt` and copy `.env.example` to `.env`.
@@ -140,7 +155,7 @@ Design principle: **the engine computes, the agents communicate.** LLM agents ne
 - [x] Tests and ground-truth evaluation
 - [x] Agent team: Personaliser, Narrator, Verifier, RecapWriter, Localiser (offline mode + Foundry backend)
 - [ ] Live Foundry run and prompt tuning
-- [ ] Live web overlay UI with player-focus mode and clickable evidence
+- [x] Live web UI: pitch, overlays, five viewer modes, clickable evidence
 - [ ] Azure deployment (Bicep / `azd up`), Event Hubs, Fabric RTI, App Insights tracing
 - [ ] Demo video
 
