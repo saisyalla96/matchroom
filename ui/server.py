@@ -118,6 +118,20 @@ class LiveMatch:
         self.idle = bool(self.watchers and self.watchers() > IDLE_SECONDS)
         return self.idle
 
+    def blocked(self) -> list[dict]:
+        """Everything the Verifier stopped, across every viewer: what the model wrote, why, what aired instead."""
+        with self.lock:
+            o = self.orch
+            out = []
+            for k, p in self.profiles.items():
+                for it in o.feeds[k] + o.recaps[k]:
+                    if it.get("verified") is False:
+                        out.append({"viewer": p.name, "clock": it.get("clock") or it.get("label"),
+                                    "kind": it.get("kind", "recap"), "t": it.get("t", 0),
+                                    "rejected": it.get("rejected"), "issues": it.get("issues", []),
+                                    "aired": it.get("text"), "lang": it.get("lang")})
+            return sorted(out, key=lambda x: -x["t"])
+
     @staticmethod
     def _ready(items, since):
         out = []
@@ -139,7 +153,7 @@ class LiveMatch:
                     ev = [self.events[i] for i in it["evidence_event_ids"] if i in self.events]
                     items.append({kk: it.get(kk) for kk in (
                         "t", "clock", "kind", "priority", "team", "player_id", "player_name", "text", "lang",
-                        "verified", "fallback", "issues", "why", "headline", "data")} | {"evidence": ev})
+                        "verified", "fallback", "issues", "rejected", "why", "headline", "data")} | {"evidence": ev})
                 feeds[k] = items
                 recaps[k] = [r for r in o.recaps[k][recap_cursors.get(k, 0):] if r.get("verified") is not None]
             s = e.stats()
@@ -227,6 +241,8 @@ def handler_for(app: App):
                 cur = json.loads(q.get("c", "{}"))
                 rc = json.loads(q.get("r", "{}"))
                 return self._send(200, json.dumps(app.match.state(cur, rc), ensure_ascii=False).encode("utf-8"))
+            if u.path == "/api/blocked":
+                return self._send(200, json.dumps(app.match.blocked(), ensure_ascii=False).encode("utf-8"))
             if u.path == "/api/control":
                 act = q.get("action")
                 if act == "pause":

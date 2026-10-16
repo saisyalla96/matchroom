@@ -58,20 +58,23 @@ class Orchestrator:
         with telemetry.span("matchroom.utterance", **{f"matchroom.{k}": v for k, v in ctx.items()},
                             **{"matchroom.language": lang}) as sp:
             out = self._say_inner(facts, draft_fn, safe_fn, lang)
-            text, text_lang, fallback, issues = out
+            text, text_lang, fallback, issues, rejected = out
             telemetry.set_attrs(sp, **{"matchroom.verified": not issues, "matchroom.fallback": fallback,
                                        "matchroom.verifier_issues": "; ".join(issues) or None,
+                                       "matchroom.rejected_text": rejected,
                                        "matchroom.output_language": text_lang, "matchroom.text": text})
             return out
 
     def _say_inner(self, facts, draft_fn, safe_fn, lang):
-        text, text_lang, fallback, issues = None, "en", False, []
+        """Returns (text, language, fallback_used, issues, rejected_model_text)."""
+        text, text_lang, fallback, issues, rejected = None, "en", False, [], None
         try:
             text, text_lang = draft_fn()
             issues = self.verifier.check(text, facts, text_lang)
         except Exception as ex:  # model/network failure must never break a live broadcast
             issues = [f"generation error: {ex.__class__.__name__}"]
         if issues:
+            rejected = text  # what the model wrote, kept so people can see what the Verifier stopped
             text, text_lang, fallback = safe_fn(), "en", True
         if text_lang.split("-")[0] != lang.split("-")[0]:
             try:
@@ -79,11 +82,12 @@ class Orchestrator:
                 t_issues = self.verifier.check(out, facts, out_lang) if out_lang != "en" else []
                 if t_issues:
                     issues += [f"translation: {i}" for i in t_issues]
+                    rejected = rejected or out
                 else:
                     text, text_lang = out, out_lang
             except Exception as ex:
                 issues.append(f"translation error: {ex.__class__.__name__}")
-        return text, text_lang, fallback, issues
+        return text, text_lang, fallback, issues, rejected
 
     def _submit(self, fn):
         if self.pool:
@@ -114,12 +118,12 @@ class Orchestrator:
         self.feeds[k].append(item)  # placeholder keeps on-screen order; text is filled in when ready
 
         def job():
-            text, lang, fb, issues = self._say(
+            text, lang, fb, issues, rejected = self._say(
                 facts, lambda: self.narrator.write(cue, p),
                 lambda: self.narrator.template(cue, p), p.language,
                 viewer=k, mode=p.mode, cue_kind=cue["kind"], clock=cue["clock"], cue_id=cue["cue_id"],
                 evidence_events=len(cue["explain"]["evidence_event_ids"]))
-            item.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
+            item.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues, rejected=rejected)
             if k == self.echo:
                 flag = "" if not issues else "  [verifier: " + "; ".join(issues) + "]"
                 self._print(f"{item['clock']:>4} {text}{flag}")
@@ -139,9 +143,9 @@ class Orchestrator:
                     r = self.recapper.write(label, stats, cues, p)
                     return r["text"], r["lang"]
 
-                text, lang, fb, issues = self._say(facts, draft, lambda: self.recapper.template(facts, p),
+                text, lang, fb, issues, rejected = self._say(facts, draft, lambda: self.recapper.template(facts, p),
                                                    p.language, viewer=k, mode=p.mode, cue_kind="recap", clock=label)
-                rec.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
+                rec.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues, rejected=rejected)
                 if k == self.echo:
                     self._print(f"\n=== {label} recap [{k}] ===\n{text}\n")
 

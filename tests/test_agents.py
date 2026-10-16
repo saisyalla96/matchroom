@@ -59,6 +59,7 @@ class AgentTest(unittest.TestCase):
         self.assertTrue(feed)
         self.assertTrue(all(i["fallback"] for i in feed))
         self.assertTrue(all("97" not in i["text"] for i in feed))
+        self.assertTrue(all("97 metre" in (i["rejected"] or "") for i in feed))  # kept for the Verifier log
         self.assertGreater(orch.verifier.blocked, 0)
 
 

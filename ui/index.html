@@ -111,6 +111,21 @@ select.btn{appearance:none;padding-right:12px;color:var(--ink);background:var(--
 select.btn option{background:var(--panel);color:var(--ink)}
 .status{margin-left:auto;color:var(--dim);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
 .status b{color:var(--ink);font-weight:600}
+.linkbtn{background:none;border:0;padding:0;color:var(--warn);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.linkbtn[disabled]{color:var(--dim);text-decoration:none;cursor:default}
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:0;width:min(760px,calc(100vw - 32px));max-height:80vh}
+dialog::backdrop{background:rgba(5,10,20,.65)}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dlg-head h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0}
+.dlg-body{padding:14px 20px 20px;overflow:auto;max-height:calc(80vh - 70px)}
+.dlg-body>p{color:var(--dim);margin:0 0 12px}
+.blk{background:var(--panel-2);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.blk .meta{color:var(--dim);font-size:13px;margin-bottom:6px}
+.blk .row2{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:14px}
+.blk .row2 dt{color:var(--dim)} .blk .row2 dd{margin:0}
+.blk .bad{color:#FF8A8A;text-decoration:line-through;text-decoration-color:rgba(255,138,138,.6)}
+.blk .why{color:var(--warn)}
+.rej{margin-top:6px;color:#FF8A8A}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 </head>
@@ -160,6 +175,10 @@ select.btn option{background:var(--panel);color:var(--ink)}
   </aside>
 </main>
 
+<dialog id="blockedDlg" aria-labelledby="blkTitle">
+  <div class="dlg-head"><h2 id="blkTitle">What the Verifier stopped</h2><button class="btn" id="blkClose">Close</button></div>
+  <div class="dlg-body"><p>Lines the AI wrote that broke a rule. None of them reached the screen: a safe line built only from verified facts aired instead.</p><div id="blkList"></div></div>
+</dialog>
 <script>
 const $ = s => document.querySelector(s);
 const KIND_TAG = {goal:"Goal", big_chance:"Big chance", momentum_swing:"Momentum", game_state:"Game state",
@@ -242,11 +261,36 @@ function renderScore(s){
   const ph=$("#phase"); ph.dataset.regime=s.regime;
   ph.textContent = {chaos:"Chaos phase", control:"Control phase", balanced:"Balanced"}[s.regime];
 }
+function humanIssue(t){
+  t=String(t);
+  let m;
+  if((m=t.match(/^translation: (.*)/))) return "In translation: "+humanIssue(m[1]);
+  if((m=t.match(/^number (\S+)( .*)? not in facts/))) return `Used the number ${m[1]}${m[2]||""}, which isn't in the match data`;
+  if((m=t.match(/^player '(.+)' not in facts/))) return `Named ${m[1]}, who isn't part of this moment`;
+  if((m=t.match(/^wrong-language text \((.+)\) in a '(.+)' output/))) return `Contained ${m[1]} script in a ${m[2]} line`;
+  if((m=t.match(/^generation error: (.*)/))) return `The AI call failed (${m[1]})`;
+  return t;
+}
+async function openBlocked(){
+  const list = await (await fetch("/api/blocked")).json();
+  $("#blkList").innerHTML = list.length ? list.map(b=>`<div class="blk">
+    <div class="meta">${esc(b.clock)}, ${esc(b.viewer)}</div>
+    <dl class="row2">
+      ${b.rejected?`<dt>AI wrote</dt><dd class="bad">${esc(b.rejected)}</dd>`:""}
+      <dt>Why blocked</dt><dd class="why">${b.issues.map(i=>esc(humanIssue(i))).join("<br>")}</dd>
+      <dt>Aired instead</dt><dd lang="${esc(b.lang)}">${esc(b.aired)}</dd>
+    </dl></div>`).join("") : `<p>Nothing blocked yet. Every AI line so far has matched the facts.</p>`;
+  $("#blockedDlg").showModal();
+}
+$("#blkClose").onclick=()=>$("#blockedDlg").close();
 function renderStatus(s){
   const m=s.model;
   const src = m.backend==="offline" ? "Offline templates"
     : m.agent_calls ? `Foundry Agent Service, <b>${m.agent_calls}</b> agent calls` : `${m.label}, <b>${m.calls}</b> model calls`;
-  $("#status").innerHTML = `<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, <b>${m.verifier_blocked}</b> blocked</span>`;
+  const blk = m.verifier_blocked
+    ? `<button class="linkbtn" id="blkBtn">${m.verifier_blocked} blocked</button>` : `<b>0</b> blocked`;
+  $("#status").innerHTML = `<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, ${blk}</span>`;
+  const bb=$("#blkBtn"); if(bb) bb.onclick=openBlocked;
 }
 
 /* ---------- stats ---------- */
@@ -291,7 +335,8 @@ function renderFeed(reset){
   $("#feed").innerHTML = all.map(it=>{
     if(it._type==="recap") return `<div class="recap"><h3>${esc(it.label)} recap</h3><p lang="${esc(it.lang)}">${esc(it.text)}</p></div>`;
     const n=(it.evidence||[]).length, open=selected===it._i;
-    const check = it.fallback ? `<span class="check fb">Model text failed a check, so a safe template was shown</span>`
+    const check = it.verified===false ? `<span class="check fb">The AI's line failed a check, so a safe line aired instead</span>${
+        it.rejected?`<div class="rej">AI wrote: <s>${esc(it.rejected)}</s></div>`:""}<div>${(it.issues||[]).map(i=>esc(humanIssue(i))).join("<br>")}</div>`
       : `<span class="check">Checked against the facts${n?`, ${n} match event${n>1?"s":""} behind it`:""}</span>`;
     return `<button class="item ${it.kind==="goal"?"goal":""}" data-i="${it._i}" aria-expanded="${open}">
       <div class="row"><span class="min">${esc(it.clock)}</span><span class="club-dot" style="background:${teamColour(it.team)}"></span>
