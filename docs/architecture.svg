@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" font-family="Segoe UI, Barlow, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#93A9C4"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#FFC845"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="660" rx="18" fill="#0F1B2D"/>
+  <text x="40" y="52" fill="#EAF1F8" font-size="26" font-weight="700">Matchroom architecture</text>
+  <text x="40" y="78" fill="#93A9C4" font-size="15">The engine computes, the agents communicate, the Verifier decides what reaches the screen.</text>
+
+  <!-- Row 1: data + deterministic intelligence -->
+  <g>
+    <rect x="40" y="110" width="250" height="150" rx="12" fill="#15253B" stroke="#284563"/>
+    <text x="60" y="140" fill="#EAF1F8" font-size="17" font-weight="600">Synthetic match simulator</text>
+    <text x="60" y="166" fill="#93A9C4" font-size="13.5">Events: passes, shots, tackles,</text>
+    <text x="60" y="185" fill="#93A9C4" font-size="13.5">pressure, possession, metadata</text>
+    <text x="60" y="208" fill="#93A9C4" font-size="13.5">1 Hz tracking of 22 players + ball</text>
+    <text x="60" y="231" fill="#93A9C4" font-size="13.5">Hidden tactical ground truth</text>
+
+    <rect x="340" y="110" width="290" height="150" rx="12" fill="#15253B" stroke="#284563"/>
+    <text x="360" y="140" fill="#EAF1F8" font-size="17" font-weight="600">Real-time insights engine</text>
+    <text x="360" y="166" fill="#93A9C4" font-size="13.5">Pass difficulty, xG, shot and ball speed</text>
+    <text x="360" y="185" fill="#93A9C4" font-size="13.5">Pressing, momentum, control vs chaos</text>
+    <text x="360" y="208" fill="#93A9C4" font-size="13.5">Timed overlay cues, each with a "why"</text>
+    <text x="360" y="231" fill="#FFC845" font-size="13.5">and the event IDs that prove it</text>
+
+    <rect x="680" y="110" width="230" height="150" rx="12" fill="#15253B" stroke="#284563"/>
+    <text x="700" y="140" fill="#EAF1F8" font-size="17" font-weight="600">Personaliser</text>
+    <text x="700" y="166" fill="#93A9C4" font-size="13.5">Casual fan, analyst,</text>
+    <text x="700" y="185" fill="#93A9C4" font-size="13.5">favourite club, player focus,</text>
+    <text x="700" y="208" fill="#93A9C4" font-size="13.5">single-metric tracker,</text>
+    <text x="700" y="231" fill="#93A9C4" font-size="13.5">any language</text>
+
+    <rect x="960" y="110" width="200" height="150" rx="12" fill="#15253B" stroke="#284563"/>
+    <text x="980" y="140" fill="#EAF1F8" font-size="17" font-weight="600">Evaluation</text>
+    <text x="980" y="166" fill="#93A9C4" font-size="13.5">Explanations scored</text>
+    <text x="980" y="185" fill="#93A9C4" font-size="13.5">against ground truth</text>
+    <text x="980" y="208" fill="#93A9C4" font-size="13.5">over 20 matches</text>
+
+    <line x1="290" y1="185" x2="336" y2="185" stroke="#93A9C4" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="630" y1="185" x2="676" y2="185" stroke="#93A9C4" stroke-width="2" marker-end="url(#a)"/>
+    <path d="M165,260 C165,300 1060,300 1060,264" fill="none" stroke="#5F7A99" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#a)"/>
+    <text x="190" y="316" fill="#5F7A99" font-size="12.5">hidden ground-truth labels</text>
+  </g>
+
+  <!-- Row 2: Foundry agents + verifier -->
+  <rect x="40" y="335" width="600" height="160" rx="14" fill="#14243A" stroke="#7B5CFF" stroke-width="1.5"/>
+  <text x="60" y="364" fill="#C9B8FF" font-size="15" font-weight="600">Microsoft Foundry Agent Service (gpt-5.4-mini)</text>
+  <rect x="60" y="380" width="175" height="96" rx="10" fill="#1B2E49"/>
+  <text x="74" y="408" fill="#EAF1F8" font-size="14.5" font-weight="600">matchroom-narrator</text>
+  <text x="74" y="430" fill="#93A9C4" font-size="12.5">Live on-screen lines per</text>
+  <text x="74" y="447" fill="#93A9C4" font-size="12.5">viewer, language and</text>
+  <text x="74" y="464" fill="#93A9C4" font-size="12.5">club perspective</text>
+  <rect x="250" y="380" width="180" height="96" rx="10" fill="#1B2E49"/>
+  <text x="264" y="408" fill="#EAF1F8" font-size="14.5" font-weight="600">matchroom-recap-writer</text>
+  <text x="264" y="430" fill="#93A9C4" font-size="12.5">Half-time and full-time</text>
+  <text x="264" y="447" fill="#93A9C4" font-size="12.5">recaps per audience</text>
+  <rect x="445" y="380" width="180" height="96" rx="10" fill="#1B2E49"/>
+  <text x="459" y="408" fill="#EAF1F8" font-size="14.5" font-weight="600">matchroom-localiser</text>
+  <text x="459" y="430" fill="#93A9C4" font-size="12.5">Translation that keeps</text>
+  <text x="459" y="447" fill="#93A9C4" font-size="12.5">names and numbers exact</text>
+
+  <rect x="700" y="335" width="250" height="160" rx="14" fill="#2A2410" stroke="#FFC845" stroke-width="1.5"/>
+  <text x="720" y="364" fill="#FFC845" font-size="17" font-weight="700">Verifier (code, not AI)</text>
+  <text x="720" y="390" fill="#EAF1F8" font-size="13.5">Every number in the facts,</text>
+  <text x="720" y="409" fill="#EAF1F8" font-size="13.5">with the right unit</text>
+  <text x="720" y="432" fill="#EAF1F8" font-size="13.5">Every player named is in the facts</text>
+  <text x="720" y="455" fill="#EAF1F8" font-size="13.5">Right script for the language</text>
+  <text x="720" y="480" fill="#FFC845" font-size="13">Fail: safe template goes on air</text>
+
+  <line x1="795" y1="260" x2="795" y2="331" stroke="#93A9C4" stroke-width="2" marker-end="url(#a)"/>
+  <text x="805" y="302" fill="#93A9C4" font-size="12.5">grounded facts</text>
+  <line x1="700" y1="262" x2="560" y2="332" stroke="#93A9C4" stroke-width="2" marker-end="url(#a)"/>
+  <text x="462" y="316" fill="#93A9C4" font-size="12.5">facts + viewer</text>
+  <line x1="640" y1="440" x2="696" y2="440" stroke="#FFC845" stroke-width="2" marker-end="url(#g)"/>
+  <text x="646" y="430" fill="#FFC845" font-size="12">drafts</text>
+
+  <rect x="990" y="335" width="170" height="160" rx="14" fill="#15253B" stroke="#284563"/>
+  <text x="1008" y="364" fill="#EAF1F8" font-size="15" font-weight="600">Resilience</text>
+  <text x="1008" y="390" fill="#93A9C4" font-size="12.5">Agents, then direct</text>
+  <text x="1008" y="407" fill="#93A9C4" font-size="12.5">model, then templates</text>
+  <text x="1008" y="432" fill="#93A9C4" font-size="12.5">Retries for 5xx and 429</text>
+  <text x="1008" y="457" fill="#93A9C4" font-size="12.5">Circuit breaker</text>
+  <text x="1008" y="474" fill="#93A9C4" font-size="12.5">Idle cost guard</text>
+
+  <!-- Row 3: studio + platform -->
+  <rect x="40" y="525" width="600" height="100" rx="14" fill="#1D563C" stroke="#2E7A55"/>
+  <text x="60" y="556" fill="#EAF1F8" font-size="17" font-weight="600">Matchroom Studio (Azure Container Apps)</text>
+  <text x="60" y="582" fill="#D7EBDD" font-size="13.5">Live pitch, scorebug, timed lower-thirds, five viewer feeds,</text>
+  <text x="60" y="602" fill="#D7EBDD" font-size="13.5">recaps, and clickable evidence drawn on the pitch</text>
+  <line x1="825" y1="495" x2="560" y2="521" stroke="#93A9C4" stroke-width="2" marker-end="url(#a)"/>
+  <text x="700" y="520" fill="#93A9C4" font-size="12.5">verified lines</text>
+
+  <rect x="700" y="525" width="460" height="100" rx="14" fill="#15253B" stroke="#284563"/>
+  <text x="720" y="556" fill="#EAF1F8" font-size="15" font-weight="600">Platform</text>
+  <text x="720" y="576" fill="#93A9C4" font-size="13">Managed identity (no keys), Bicep + azd up, Container Registry</text>
+  <text x="720" y="595" fill="#93A9C4" font-size="13">OpenTelemetry to Application Insights, Foundry Traces</text>
+  <text x="720" y="614" fill="#93A9C4" font-size="13">GitHub Actions CI, built with GitHub Copilot</text>
+</svg>
