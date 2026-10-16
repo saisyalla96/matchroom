@@ -37,6 +37,11 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(v.check("Leo Halden's chance was worth 23% from 18.4 m", facts), [])
         self.assertTrue(v.check("Leo Halden scored from 30 m", facts))           # invented number
         self.assertTrue(v.check("Kai Okafor's chance from 18.4 m", facts))       # wrong player
+        # exact values are allowed, not only rounded ones (live bug: 0.281 xG was wrongly blocked)
+        exact = {"player_name": "Leo Halden", "data": {"xg": 0.281}, "headline": "Big chance (0.28 xG)"}
+        self.assertEqual(v.check("Leo Halden's chance carried 0.281 xG", exact), [])
+        self.assertEqual(v.check("Leo Halden's chance carried 0.28 xG, about 28%", exact), [])
+        self.assertTrue(v.check("Leo Halden's chance carried 0.35 xG", exact))
         speed = {"player_name": "Leo Halden", "data": {"shot_speed_kmh": 97.4}}
         self.assertEqual(v.check("Leo Halden hit it at 97 km/h", speed), [])
         self.assertTrue(v.check("Leo Halden's 97 metre run", speed))            # right number, wrong unit

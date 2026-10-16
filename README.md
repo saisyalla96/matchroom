@@ -19,7 +19,7 @@ timed overlay cues, live narratives and recaps, personalised for every fan, wher
 | AI path | 3 versioned **Foundry Agent Service** agents on `gpt-5.4-mini` |
 | Agent run time inside Foundry | about 0.7 to 1.3 s per line (Foundry Traces) |
 | Cost per on-screen line | under $0.001 (Foundry Traces estimate) |
-| Verifier | 110 checks, **4 model lines blocked** and replaced with safe templates in one live run |
+| Verifier | every AI line checked before air; blocked lines are listed in the studio (*N blocked*) with the reason |
 | Explanations vs hidden ground truth | pressing-surge cues correct 53% of the time vs about 20% by chance (20 matches) |
 | Resilience | agents, then direct model, then templates; retries on 5xx and 429; circuit breaker |
 
@@ -94,7 +94,7 @@ half / full time ──► RecapWriter ──► Verifier ──► Localiser �
 |---|---|
 | **Personaliser** | Filters and paces cues per viewer; adds periodic player cards and metric tickers |
 | **Narrator** | Rewrites a grounded cue for the viewer's mode and club allegiance (Foundry model, or templates offline) |
-| **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, every named player must be in the facts, and the text must be in the target language's script (added after a live test produced a stray Hindi word inside Spanish commentary). Failures are replaced by a safe template, so a hallucination never reaches air |
+| **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, every named player must be in the facts, and the text must be in the target language's script (added after a live test produced a stray Hindi word inside Spanish commentary). Live testing also exposed an over-strict rule that rejected an exact value (0.281 xG) the model had quoted correctly; it is fixed and covered by a test. Failures are replaced by a safe template, so a hallucination never reaches air |
 | **RecapWriter** | Half-time and full-time recaps, casual or analytical |
 | **Localiser** | Azure AI Translator (or the model), then re-verified so names and numbers survive translation |
 

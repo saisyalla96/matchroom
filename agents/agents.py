@@ -86,14 +86,14 @@ def unit_numbers(facts) -> dict[str, set[float]]:
         else:
             continue
         for v in vals:
-            out[u].update({round(v), round(v, 1), round(v, 2)})
+            out[u].update({v, round(v), round(v, 1), round(v, 2), round(v, 3)})
     # numbers quoted inside text facts ("why", "headline") keep their written unit
     text = json.dumps(facts, ensure_ascii=False)
     for num, unit in UNIT_RE.findall(text):
         u = _unit(unit)
         if u:
             v = float(num.replace(",", "."))
-            out[u].update({round(v), round(v, 1), round(v, 2)})
+            out[u].update({v, round(v), round(v, 1), round(v, 2), round(v, 3)})
     return out
 
 
@@ -103,7 +103,7 @@ def allowed_numbers(facts) -> set[float]:
     out = set()
     for n in base:
         for v in (n, n * 100, n / 1000):  # 0.23 -> 23%, metres -> km
-            out.update({round(v), round(v, 1), round(v, 2)})
+            out.update({v, round(v), round(v, 1), round(v, 2), round(v, 3)})
     return out
 
 
