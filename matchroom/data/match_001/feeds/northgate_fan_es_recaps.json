@@ -1,0 +1,20 @@
+[
+  {
+    "t": 2738.7,
+    "label": "Half-time",
+    "text": "Half-time: Riverside 0-1 Northgate. 24' Elias Castell scored. Chances were evenly shared.",
+    "lang": "en",
+    "verified": true,
+    "fallback": false,
+    "issues": []
+  },
+  {
+    "t": 5475.0,
+    "label": "Full-time",
+    "text": "Full-time: Riverside 1-2 Northgate. 24' Elias Castell scored. 48' Ezra Quill scored. 68' Idris Lindqvist scored. Chances were evenly shared.",
+    "lang": "en",
+    "verified": true,
+    "fallback": false,
+    "issues": []
+  }
+]

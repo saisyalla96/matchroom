@@ -20,10 +20,12 @@ from engine.insights import MatchEngine
 
 def stream(folder: Path):
     """Merge events and tracking frames into one time-ordered stream (stage a: ingest)."""
-    ev = ((e["t"], 1, "event", e) for e in map(json.loads, open(folder / "events.jsonl")))
-    fr = ((f["t"], 0, "frame", f) for f in map(json.loads, open(folder / "tracking.jsonl")))
-    for t, _, kind, obj in heapq.merge(ev, fr, key=lambda x: (x[0], x[1])):
-        yield t, kind, obj
+    with open(folder / "events.jsonl", encoding="utf-8") as fe, \
+            open(folder / "tracking.jsonl", encoding="utf-8") as ft:
+        ev = ((e["t"], 1, "event", e) for e in map(json.loads, fe))
+        fr = ((f["t"], 0, "frame", f) for f in map(json.loads, ft))
+        for t, _, kind, obj in heapq.merge(ev, fr, key=lambda x: (x[0], x[1])):
+            yield t, kind, obj
 
 
 def evaluate(cues, truth_path: Path):

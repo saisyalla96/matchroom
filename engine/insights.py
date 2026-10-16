@@ -171,8 +171,9 @@ class MatchEngine:
                                 "ball_speed_kmh": round(ev["ball_speed_ms"] * 3.6, 1),
                                 "progression_m": prog, "recipient": ev["recipient_name"],
                                 "lane_clearance_m": ev["lane_clearance_m"]},
-                          why=(f"{ev['distance_m']} m pass moved play {prog:.0f} m forward; the nearest defender was "
-                               f"just {ev['lane_clearance_m']} m from the passing lane."),
+                          why=(f"{ev['distance_m']} m pass moved play {prog:.0f} m forward; " + (
+                               f"the nearest defender was just {ev['lane_clearance_m']} m from the passing lane."
+                               if ev["lane_clearance_m"] >= 0.1 else "it went straight past a defender in the passing lane.")),
                           evidence=[eid], metrics={"difficulty": ev["difficulty"]})
             n = P["passes_ok"]
             if n in PASS_MILESTONES:

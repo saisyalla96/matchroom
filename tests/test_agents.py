@@ -64,3 +64,58 @@ class AgentTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeSlowLLM:
+    """Online fake: 0.2 s per call, echoes the headline (grounded), counts concurrency."""
+    online, calls, latency_ms, backend = True, 0, 0.0, "fake"
+
+    def __init__(self):
+        import threading
+        self.lock, self.active, self.peak = threading.Lock(), 0, 0
+
+    def json(self, system, payload, max_tokens=300):
+        import time
+        with self.lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+        time.sleep(0.2)
+        with self.lock:
+            self.active -= 1
+            self.calls += 1
+        f = payload.get("facts", {})
+        return {"text": f.get("headline") or "Recap.", "title": "t"}
+
+
+class ImprovementsTest(unittest.TestCase):
+    def test_wrong_script_is_blocked(self):
+        from agents.agents import foreign_scripts
+        v = Verifier({"A-01": "Leo Halden"})
+        facts = {"player_name": "Leo Halden"}
+        self.assertTrue(v.check("Leo Halden da un pase शानदार", facts, "es"))
+        self.assertEqual(v.check("¡Qué pase de Leo Halden!", facts, "es"), [])
+        self.assertEqual(foreign_scripts("लियो Halden का शानदार पास", "hi"), set())
+
+    def test_perspective(self):
+        from agents.agents import Narrator
+        fan = Profile(mode="casual", clubs=["NGC"])
+        self.assertEqual(Narrator.perspective({"team": "NGC"}, fan), "good_for_fan")
+        self.assertEqual(Narrator.perspective({"team": "RVA"}, fan), "bad_for_fan")
+        self.assertEqual(Narrator.perspective({"team": "RVA"}, Profile(mode="casual")), "neutral")
+
+    def test_parallel_calls_keep_order(self):
+        import time
+        llm = FakeSlowLLM()
+        t0 = time.time()
+        orch, _ = run_match({"fan": Profile(mode="casual", clubs=["NGC"])}, llm)
+        elapsed = time.time() - t0
+        feed = orch.feeds["fan"]
+        self.assertGreater(llm.peak, 1)                       # calls really overlapped
+        self.assertLess(elapsed, llm.calls * 0.2 * 0.6 + 3)   # much faster than sequential
+        self.assertEqual([i["t"] for i in feed], sorted(i["t"] for i in feed))
+        self.assertTrue(all(i["verified"] for i in feed))
+        self.assertTrue(all(r.get("text") for r in orch.recaps["fan"]))
+
+    def test_favourite_fan_feed_is_paced(self):
+        orch, _ = run_match({"fan": Profile(mode="casual", clubs=["NGC"]), "plain": Profile(mode="casual")})
+        self.assertLess(len(orch.feeds["fan"]), len(orch.feeds["plain"]) + 12)

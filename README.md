@@ -76,7 +76,7 @@ half / full time ──► RecapWriter ──► Verifier ──► Localiser �
 |---|---|
 | **Personaliser** | Filters and paces cues per viewer; adds periodic player cards and metric tickers |
 | **Narrator** | Rewrites a grounded cue for the viewer's mode and club allegiance (Foundry model, or templates offline) |
-| **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, and every named player must be in the facts. Failures are replaced by a safe template, so a hallucination never reaches air |
+| **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, every named player must be in the facts, and the text must be in the target language's script (added after a live test produced a stray Hindi word inside Spanish commentary). Failures are replaced by a safe template, so a hallucination never reaches air |
 | **RecapWriter** | Half-time and full-time recaps, casual or analytical |
 | **Localiser** | Azure AI Translator (or the model), then re-verified so names and numbers survive translation |
 

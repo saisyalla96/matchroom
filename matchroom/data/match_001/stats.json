@@ -1,0 +1,287 @@
+{
+  "t": 5475.0,
+  "score": {
+    "RVA": 1,
+    "NGC": 2
+  },
+  "momentum": 0.215,
+  "regime": "balanced",
+  "teams": {
+    "RVA": {
+      "possession_pct": 49.1,
+      "passes": 852,
+      "pass_accuracy_pct": 80.3,
+      "avg_pass_distance_m": 27.5,
+      "avg_pass_difficulty": 6,
+      "line_breaking_passes": 161,
+      "final_third_entries": 139,
+      "shots": 10,
+      "on_target": 5,
+      "xg": 0.81,
+      "max_shot_speed_kmh": 106.1,
+      "pressures": 475,
+      "tackles_won": 46,
+      "recoveries": 204
+    },
+    "NGC": {
+      "possession_pct": 50.9,
+      "passes": 894,
+      "pass_accuracy_pct": 82.8,
+      "avg_pass_distance_m": 26.2,
+      "avg_pass_difficulty": 6,
+      "line_breaking_passes": 188,
+      "final_third_entries": 139,
+      "shots": 6,
+      "on_target": 4,
+      "xg": 0.75,
+      "max_shot_speed_kmh": 112.0,
+      "pressures": 232,
+      "tackles_won": 28,
+      "recoveries": 205
+    }
+  },
+  "players": {
+    "RVA-01": {
+      "name": "Nico Brandt",
+      "team": "RVA",
+      "passes": 6,
+      "pass_accuracy_pct": 83.3,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 1,
+      "distance_km": 3.32,
+      "top_speed_kmh": 8.4
+    },
+    "RVA-02": {
+      "name": "Tomas Petrov",
+      "team": "RVA",
+      "passes": 33,
+      "pass_accuracy_pct": 69.7,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 4,
+      "distance_km": 8.63,
+      "top_speed_kmh": 32.5
+    },
+    "RVA-03": {
+      "name": "Caio Achebe",
+      "team": "RVA",
+      "passes": 43,
+      "pass_accuracy_pct": 76.7,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 3,
+      "distance_km": 9.57,
+      "top_speed_kmh": 29.0
+    },
+    "RVA-04": {
+      "name": "Mateo Okafor",
+      "team": "RVA",
+      "passes": 42,
+      "pass_accuracy_pct": 59.5,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 7,
+      "distance_km": 9.48,
+      "top_speed_kmh": 28.4
+    },
+    "RVA-05": {
+      "name": "Arlo Vance",
+      "team": "RVA",
+      "passes": 39,
+      "pass_accuracy_pct": 66.7,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 3,
+      "distance_km": 8.73,
+      "top_speed_kmh": 31.2
+    },
+    "RVA-06": {
+      "name": "Hugo Achebe",
+      "team": "RVA",
+      "passes": 95,
+      "pass_accuracy_pct": 83.2,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 4,
+      "distance_km": 11.29,
+      "top_speed_kmh": 28.6
+    },
+    "RVA-07": {
+      "name": "Noah Halden",
+      "team": "RVA",
+      "passes": 68,
+      "pass_accuracy_pct": 86.8,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 5,
+      "distance_km": 12.6,
+      "top_speed_kmh": 31.5
+    },
+    "RVA-08": {
+      "name": "Bram Sorensen",
+      "team": "RVA",
+      "passes": 91,
+      "pass_accuracy_pct": 82.4,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 8,
+      "distance_km": 11.76,
+      "top_speed_kmh": 29.3
+    },
+    "RVA-09": {
+      "name": "Mateo Rinaldi",
+      "team": "RVA",
+      "passes": 147,
+      "pass_accuracy_pct": 76.9,
+      "shots": 1,
+      "xg": 0.02,
+      "tackles_won": 6,
+      "distance_km": 10.36,
+      "top_speed_kmh": 31.3
+    },
+    "RVA-10": {
+      "name": "Ezra Quill",
+      "team": "RVA",
+      "passes": 162,
+      "pass_accuracy_pct": 87.0,
+      "shots": 7,
+      "xg": 0.74,
+      "tackles_won": 5,
+      "distance_km": 12.06,
+      "top_speed_kmh": 31.6
+    },
+    "RVA-11": {
+      "name": "Elias Moreno",
+      "team": "RVA",
+      "passes": 126,
+      "pass_accuracy_pct": 83.3,
+      "shots": 2,
+      "xg": 0.05,
+      "tackles_won": 0,
+      "distance_km": 10.17,
+      "top_speed_kmh": 33.5
+    },
+    "NGC-01": {
+      "name": "Kai Sorensen",
+      "team": "NGC",
+      "passes": 11,
+      "pass_accuracy_pct": 90.9,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 0,
+      "distance_km": 3.27,
+      "top_speed_kmh": 9.3
+    },
+    "NGC-02": {
+      "name": "Arlo Varga",
+      "team": "NGC",
+      "passes": 28,
+      "pass_accuracy_pct": 82.1,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 2,
+      "distance_km": 9.21,
+      "top_speed_kmh": 31.5
+    },
+    "NGC-03": {
+      "name": "Luka Castell",
+      "team": "NGC",
+      "passes": 33,
+      "pass_accuracy_pct": 87.9,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 4,
+      "distance_km": 9.17,
+      "top_speed_kmh": 29.9
+    },
+    "NGC-04": {
+      "name": "Ravi Achebe",
+      "team": "NGC",
+      "passes": 27,
+      "pass_accuracy_pct": 77.8,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 2,
+      "distance_km": 9.47,
+      "top_speed_kmh": 29.8
+    },
+    "NGC-05": {
+      "name": "Mateo Strand",
+      "team": "NGC",
+      "passes": 42,
+      "pass_accuracy_pct": 76.2,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 1,
+      "distance_km": 9.06,
+      "top_speed_kmh": 33.1
+    },
+    "NGC-06": {
+      "name": "Oskar Lindqvist",
+      "team": "NGC",
+      "passes": 106,
+      "pass_accuracy_pct": 82.1,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 2,
+      "distance_km": 12.11,
+      "top_speed_kmh": 30.8
+    },
+    "NGC-07": {
+      "name": "Arlo Achebe",
+      "team": "NGC",
+      "passes": 108,
+      "pass_accuracy_pct": 85.2,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 6,
+      "distance_km": 12.21,
+      "top_speed_kmh": 32.2
+    },
+    "NGC-08": {
+      "name": "Luka Vance",
+      "team": "NGC",
+      "passes": 102,
+      "pass_accuracy_pct": 84.3,
+      "shots": 0,
+      "xg": 0.0,
+      "tackles_won": 3,
+      "distance_km": 11.89,
+      "top_speed_kmh": 27.6
+    },
+    "NGC-09": {
+      "name": "Mateo Castell",
+      "team": "NGC",
+      "passes": 135,
+      "pass_accuracy_pct": 86.7,
+      "shots": 1,
+      "xg": 0.09,
+      "tackles_won": 0,
+      "distance_km": 10.77,
+      "top_speed_kmh": 32.6
+    },
+    "NGC-10": {
+      "name": "Idris Lindqvist",
+      "team": "NGC",
+      "passes": 178,
+      "pass_accuracy_pct": 80.3,
+      "shots": 3,
+      "xg": 0.35,
+      "tackles_won": 3,
+      "distance_km": 12.35,
+      "top_speed_kmh": 31.0
+    },
+    "NGC-11": {
+      "name": "Elias Castell",
+      "team": "NGC",
+      "passes": 124,
+      "pass_accuracy_pct": 80.6,
+      "shots": 2,
+      "xg": 0.32,
+      "tackles_won": 5,
+      "distance_km": 10.99,
+      "top_speed_kmh": 32.0
+    }
+  }
+}

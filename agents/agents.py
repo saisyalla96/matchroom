@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import unicodedata
 import urllib.request
 import uuid
 
@@ -105,6 +107,25 @@ def allowed_numbers(facts) -> set[float]:
     return out
 
 
+# scripts a language is allowed to use besides Latin (names, units and xG stay Latin)
+LANG_SCRIPTS = {"hi": {"DEVANAGARI"}, "mr": {"DEVANAGARI"}, "te": {"TELUGU"}, "ta": {"TAMIL"},
+                "ar": {"ARABIC"}, "ur": {"ARABIC"}, "fa": {"ARABIC"}, "ru": {"CYRILLIC"}, "uk": {"CYRILLIC"},
+                "ja": {"CJK", "HIRAGANA", "KATAKANA"}, "zh": {"CJK"}, "ko": {"HANGUL", "CJK"},
+                "el": {"GREEK"}, "he": {"HEBREW"}, "th": {"THAI"}, "bn": {"BENGALI"}}
+
+
+def foreign_scripts(text: str, lang: str) -> set[str]:
+    """Letters written in a script the target language doesn't use (e.g. Hindi inside Spanish)."""
+    allowed = {"LATIN"} | LANG_SCRIPTS.get(lang.split("-")[0], set())
+    found = set()
+    for ch in text:
+        if ch.isalpha():
+            script = unicodedata.name(ch, "UNKNOWN").split(" ")[0]
+            if script not in allowed:
+                found.add(script.title())
+    return found
+
+
 # --------------------------------------------------------------- Verifier
 class Verifier:
     """Deterministic guardrail: no new numbers, no misattributed players."""
@@ -118,10 +139,15 @@ class Verifier:
         self.unique_last = {s for s, c in last.items() if c == 1}
         self.blocked = 0
         self.checked = 0
+        self._lock = threading.Lock()
 
-    def check(self, text: str, facts) -> list[str]:
-        self.checked += 1
+    def check(self, text: str, facts, lang: str = "en") -> list[str]:
+        with self._lock:
+            self.checked += 1
         issues = []
+        bad_scripts = foreign_scripts(text, lang)
+        if bad_scripts:
+            issues.append(f"wrong-language text ({', '.join(sorted(bad_scripts))}) in a '{lang}' output")
         ok_nums = allowed_numbers(facts)
         by_unit = unit_numbers(facts)
         for num, unit in UNIT_RE.findall(text):
@@ -138,7 +164,8 @@ class Verifier:
             if re.search(rf"\b{re.escape(s)}\b", text) and s not in facts_s:
                 issues.append(f"player '{s}' not in facts")
         if issues:
-            self.blocked += 1
+            with self._lock:
+                self.blocked += 1
         return issues
 
 
@@ -148,6 +175,7 @@ class Personaliser:
         self.p = profile
         self._last_minor = -1e9
         self._last_card = 0.0
+        self._last_fav_extra = -1e9
         self.focus_name = ""
 
     def wants(self, cue: dict) -> bool:
@@ -161,13 +189,23 @@ class Personaliser:
         if p.mode == "metric":
             return k in METRIC_KINDS[p.metric]
         # casual
-        if k not in CASUAL_KINDS and not (fav and k in ("key_pass", "milestone")):
-            return False
+        if k not in CASUAL_KINDS:
+            # favourite-club fans get their own side's best passes and big milestones, but paced
+            if not (fav and k in ("key_pass", "milestone")):
+                return False
+            if k == "key_pass" and cue["data"].get("difficulty_rating", 0) < 8:
+                return False
+            if k == "milestone" and cue["data"].get("completed", 0) < 100:
+                return False
+            if cue["t_in"] - self._last_fav_extra < 420:
+                return False
+            self._last_fav_extra = cue["t_in"]
+            return True
         if k == "player_tag" and "fastest" not in cue["headline"]:
             return False
         if cue["priority"] == 1:
             return True
-        if cue["t_in"] - self._last_minor < 180 and not fav:
+        if cue["t_in"] - self._last_minor < (90 if fav else 180):
             return False
         self._last_minor = cue["t_in"]
         return True
@@ -216,8 +254,14 @@ Write for the viewer described in `viewer`:
 - analyst: precise, tactical, include the key metric(s), max 40 words.
 - player_focus: centre the sentence on the focus player, max 30 words.
 - metric: lead with the metric the viewer tracks, max 30 words.
-If `viewer.clubs` contains the cue's team, sound pleased; if the opponent, sound concerned (stay fair).
-HARD RULES: use ONLY facts in `facts`. Do not invent numbers, players, minutes or events.
+`perspective` tells you how this viewer feels about THIS moment:
+- "good_for_fan": it helps the viewer's club, so sound pleased.
+- "bad_for_fan": it helps the opponent, so sound concerned but stay fair.
+- "neutral": no club preference, so be balanced.
+Write the text in the language `language` (BCP-47), in a natural broadcast register, using only that
+language's own script. Keep player names, team names and every number exactly as given.
+HARD RULES: use ONLY facts in `facts`. Do not invent numbers, players, minutes or events, and do not
+mention weather, crowd, time of day, venue or anything else not in `facts`.
 Use team short names from `teams`. Return JSON: {"text": "<one or two sentences>"}"""
 
 
@@ -229,12 +273,21 @@ class Narrator:
         return {k: cue[k] for k in ("kind", "clock", "team", "player_name", "headline", "data")} | {
             "why": cue["explain"]["why"]}
 
-    def write(self, cue: dict, p: Profile) -> str:
+    @staticmethod
+    def perspective(cue: dict, p: Profile) -> str:
+        if not p.clubs or not cue.get("team"):
+            return "neutral"
+        return "good_for_fan" if cue["team"] in p.clubs else "bad_for_fan"
+
+    def write(self, cue: dict, p: Profile) -> tuple[str, str]:
+        """Returns (text, language). Online: written directly in the viewer's language."""
         if self.llm.online:
-            viewer = {"mode": p.mode, "clubs": p.clubs, "metric": p.metric}
-            return self.llm.json(NARRATOR_SYSTEM, {"viewer": viewer, "teams": self.teams,
-                                                   "facts": self.facts(cue)})["text"].strip()
-        return self.template(cue, p)
+            viewer = {"mode": p.mode, "clubs": [self.teams.get(c, c) for c in p.clubs], "metric": p.metric}
+            r = self.llm.json(NARRATOR_SYSTEM, {"viewer": viewer, "language": p.language,
+                                                "perspective": self.perspective(cue, p),
+                                                "teams": self.teams, "facts": self.facts(cue)})
+            return r["text"].strip(), p.language
+        return self.template(cue, p), "en"
 
     def template(self, cue: dict, p: Profile) -> str:
         k, d = cue["kind"], cue["data"]
@@ -245,7 +298,8 @@ class Narrator:
         if p.mode == "analyst" or k in ("player_card", "metric_ticker"):
             if k == "player_card":
                 return (f"{who}, {cue['clock']}: {d['passes']} passes ({d['pass_accuracy_pct']}%), "
-                        f"{d['shots']} shots, {d['xg']} xG, {d['tackles_won']} tackles won, "
+                        f"{d['shots']} shot{'s' if d['shots'] != 1 else ''}, {d['xg']} xG, "
+                        f"{d['tackles_won']} tackle{'s' if d['tackles_won'] != 1 else ''} won, "
                         f"{d['distance_km']} km, top speed {d['top_speed_kmh']} km/h.")
             if k == "metric_ticker":
                 return f"{cue['headline']}: " + ", ".join(f"{self.teams.get(a, a)} {b}" for a, b in d.items()) + "."
@@ -280,7 +334,9 @@ class Narrator:
 RECAP_SYSTEM = """You write {label} recaps for a football studio. Audience mode: {mode}.
 casual: 60-90 words, story first, simple language. analyst: 90-130 words, tactical, cite metrics.
 If the viewer has favourite clubs, frame the story from their side but stay accurate.
-Use ONLY the facts provided; never invent numbers, players or events.
+Write in the language `language` (BCP-47), using only that language's own script; keep names and numbers exact.
+Use ONLY the facts provided; never invent numbers, players or events, and do not mention weather, crowd,
+time of day, venue or anything else not in the facts.
 Return JSON: {{"title": "...", "text": "..."}}"""
 
 
@@ -301,9 +357,10 @@ class RecapWriter:
         f = self.facts(label, stats, cues)
         if self.llm.online:
             r = self.llm.json(RECAP_SYSTEM.format(label=label, mode=p.mode),
-                              {"viewer": {"mode": p.mode, "clubs": p.clubs}, "facts": f}, max_tokens=500)
-            return {"title": r.get("title", label), "text": r["text"], "facts": f}
-        return {"title": label, "text": self.template(f, p), "facts": f}
+                              {"viewer": {"mode": p.mode, "clubs": [self.teams.get(c, c) for c in p.clubs]},
+                               "language": p.language, "facts": f}, max_tokens=500)
+            return {"title": r.get("title", label), "text": r["text"], "facts": f, "lang": p.language}
+        return {"title": label, "text": self.template(f, p), "facts": f, "lang": "en"}
 
     def template(self, f, p):
         a, b = list(f["teams"])

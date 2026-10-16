@@ -53,24 +53,36 @@ class Orchestrator:
 
     # ---- one grounded utterance
     def _say(self, facts, draft_fn, safe_fn, lang):
-        text, fallback, issues = None, False, []
+        """draft -> verify -> (fallback template -> translate -> verify). Never raises."""
+        text, text_lang, fallback, issues = None, "en", False, []
         try:
-            text = draft_fn()
-            issues = self.verifier.check(text, facts)
+            text, text_lang = draft_fn()
+            issues = self.verifier.check(text, facts, text_lang)
         except Exception as ex:  # model/network failure must never break a live broadcast
             issues = [f"generation error: {ex.__class__.__name__}"]
         if issues:
-            text, fallback = safe_fn(), True
-        out, out_lang = text, "en"
-        try:
-            out, out_lang = self.localiser.translate(text, lang)
-            t_issues = self.verifier.check(out, facts) if out_lang != "en" else []
-            if t_issues:
-                issues += [f"translation: {i}" for i in t_issues]
-                out, out_lang = text, "en"
-        except Exception as ex:
-            issues.append(f"translation error: {ex.__class__.__name__}")
-        return out, out_lang, fallback, issues
+            text, text_lang, fallback = safe_fn(), "en", True
+        if text_lang.split("-")[0] != lang.split("-")[0]:
+            try:
+                out, out_lang = self.localiser.translate(text, lang)
+                t_issues = self.verifier.check(out, facts, out_lang) if out_lang != "en" else []
+                if t_issues:
+                    issues += [f"translation: {i}" for i in t_issues]
+                else:
+                    text, text_lang = out, out_lang
+            except Exception as ex:
+                issues.append(f"translation error: {ex.__class__.__name__}")
+        return text, text_lang, fallback, issues
+
+    def _submit(self, fn):
+        if self.pool:
+            self.pending.append(self.pool.submit(fn))
+        else:
+            fn()
+
+    def _print(self, line):
+        with self._print_lock:
+            print(line, flush=True)
 
     def handle_cue(self, cue):
         for k, p in self.profiles.items():
@@ -80,62 +92,85 @@ class Orchestrator:
 
     def _emit(self, k, p, cue):
         facts = self.narrator.facts(cue)
-        text, lang, fb, issues = self._say(
-            facts, lambda: self.narrator.write(cue, p), lambda: self.narrator.template(cue, p), p.language)
-        self.feeds[k].append({
+        item = {
             "t": cue["t_in"], "t_out": cue["t_out"], "clock": cue["clock"], "cue_id": cue["cue_id"],
             "kind": cue["kind"], "priority": cue["priority"], "team": cue.get("team"),
-            "player_id": cue.get("player_id"), "text": text, "lang": lang,
-            "verified": not issues, "fallback": fb, "issues": issues,
+            "player_id": cue.get("player_id"), "text": self.narrator.template(cue, p), "lang": "en",
+            "verified": None, "fallback": None, "issues": [],
             "evidence_event_ids": cue["explain"]["evidence_event_ids"], "data": cue["data"],
-        })
+        }
+        self.feeds[k].append(item)  # placeholder keeps on-screen order; text is filled in when ready
+
+        def job():
+            text, lang, fb, issues = self._say(
+                facts, lambda: self.narrator.write(cue, p),
+                lambda: self.narrator.template(cue, p), p.language)
+            item.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
+            if k == self.echo:
+                flag = "" if not issues else "  [verifier: " + "; ".join(issues) + "]"
+                self._print(f"{item['clock']:>4} {text}{flag}")
+
+        self._submit(job)
 
     def handle_recap(self, label):
         stats = self.engine.stats()
+        cues = list(self.engine.cues)
         for k, p in self.profiles.items():
-            holder = {}
+            facts = self.recapper.facts(label, stats, cues)
+            rec = {"t": self.engine.t, "label": label}
+            self.recaps[k].append(rec)
 
-            def draft():
-                holder["r"] = self.recapper.write(label, stats, self.engine.cues, p)
-                return holder["r"]["text"]
+            def job(k=k, p=p, facts=facts, rec=rec):
+                def draft():
+                    r = self.recapper.write(label, stats, cues, p)
+                    return r["text"], r["lang"]
 
-            facts = self.recapper.facts(label, stats, self.engine.cues)
-            text, lang, fb, issues = self._say(
-                facts, draft, lambda: self.recapper.template(facts, p), p.language)
-            self.recaps[k].append({"t": self.engine.t, "label": label, "text": text, "lang": lang,
-                                   "verified": not issues, "fallback": fb, "issues": issues})
+                text, lang, fb, issues = self._say(facts, draft, lambda: self.recapper.template(facts, p),
+                                                   p.language)
+                rec.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
+                if k == self.echo:
+                    self._print(f"\n=== {label} recap [{k}] ===\n{text}\n")
 
-    def run(self, folder: Path, speed: float = 0, echo: str | None = None):
+            self._submit(job)
+
+    def run(self, folder: Path, speed: float = 0, echo: str | None = None, workers: int | None = None):
+        import os
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.echo = echo
+        self._print_lock = __import__("threading").Lock()
+        self.pending = []
+        n = workers or int(os.getenv("MATCHROOM_WORKERS", "8"))
+        self.pool = ThreadPoolExecutor(max_workers=n) if (self.llm.online and n > 1) else None
         t0, wall0 = None, time.time()
-        for t, kind, obj in stream(folder):
-            if speed:
-                t0 = t if t0 is None else t0
-                wait = (t - t0) / speed - (time.time() - wall0)
-                if wait > 0:
-                    time.sleep(wait)
-            if kind == "frame":
-                new = self.engine.ingest_frame(obj)
-            else:
-                new = self.engine.ingest_event(obj)
-                if obj["type"] == "match_metadata":
-                    self._setup()
-                    continue
-            n_before = {k: len(v) for k, v in self.feeds.items()}
-            for c in new:
-                self.handle_cue(c)
-            if kind == "event" and self.ready:
-                for k, ps in self.pers.items():
-                    for c in ps.periodic(self.engine.t, self.engine.stats(), self.engine.names):
-                        self._emit(k, self.profiles[k], c)
-                if obj["type"] in ("half_time", "full_time"):
-                    self.handle_recap("Half-time" if obj["type"] == "half_time" else "Full-time")
-                    if echo:
-                        r = self.recaps[echo][-1]
-                        print(f"\n=== {r['label']} recap [{echo}] ===\n{r['text']}\n")
-            if echo:
-                for item in self.feeds[echo][n_before.get(echo, 0):]:
-                    flag = "" if item["verified"] else "  [verifier: " + "; ".join(item["issues"]) + "]"
-                    print(f"{item['clock']:>4} {item['text']}{flag}")
+        try:
+            for t, kind, obj in stream(folder):
+                if speed:
+                    t0 = t if t0 is None else t0
+                    wait = (t - t0) / speed - (time.time() - wall0)
+                    if wait > 0:
+                        time.sleep(wait)
+                if kind == "frame":
+                    new = self.engine.ingest_frame(obj)
+                else:
+                    new = self.engine.ingest_event(obj)
+                    if obj["type"] == "match_metadata":
+                        self._setup()
+                        continue
+                for c in new:
+                    self.handle_cue(c)
+                if kind == "event" and self.ready:
+                    for k, ps in self.pers.items():
+                        for c in ps.periodic(self.engine.t, self.engine.stats(), self.engine.names):
+                            self._emit(k, self.profiles[k], c)
+                    if obj["type"] in ("half_time", "full_time"):
+                        self.handle_recap("Half-time" if obj["type"] == "half_time" else "Full-time")
+        finally:
+            if self.pool:
+                for f in self.pending:
+                    f.result()
+                self.pool.shutdown()
+        self.wall_seconds = time.time() - wall0
 
     def save(self, folder: Path):
         out = folder / "feeds"
@@ -179,8 +214,9 @@ def main():
     for k, items in orch.feeds.items():
         print(f"  {k:<18} {len(items):>3} on-screen items, {len(orch.recaps[k])} recaps")
     print(f"Verifier: {v.checked} checks, {v.blocked} blocked and replaced with safe templates")
-    if orch.llm.calls:
-        print(f"Model: {orch.llm.calls} calls, avg {orch.llm.latency_ms / orch.llm.calls:.0f} ms")
+    if orch.llm.backend == "foundry":
+        print(orch.llm.summary())
+        print(f"Total run time: {orch.wall_seconds:.0f} s")
 
 
 if __name__ == "__main__":
