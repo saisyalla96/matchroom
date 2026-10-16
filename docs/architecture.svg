@@ -98,5 +98,5 @@
   <text x="720" y="556" fill="#EAF1F8" font-size="15" font-weight="600">Platform</text>
   <text x="720" y="576" fill="#93A9C4" font-size="13">Managed identity (no keys), Bicep + azd up, Container Registry</text>
   <text x="720" y="595" fill="#93A9C4" font-size="13">OpenTelemetry to Application Insights, Foundry Traces</text>
-  <text x="720" y="614" fill="#93A9C4" font-size="13">GitHub Actions CI, built with GitHub Copilot</text>
+  <text x="720" y="614" fill="#93A9C4" font-size="13">GitHub Actions CI on every push</text>
 </svg>

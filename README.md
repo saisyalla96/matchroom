@@ -96,7 +96,7 @@ half / full time ──► RecapWriter ──► Verifier ──► Localiser �
 | **Narrator** | Rewrites a grounded cue for the viewer's mode and club allegiance (Foundry model, or templates offline) |
 | **Verifier** | Deterministic guardrail: every number must exist in the facts **with the right unit**, every named player must be in the facts, and the text must be in the target language's script (added after a live test produced a stray Hindi word inside Spanish commentary). Live testing also exposed an over-strict rule that rejected an exact value (0.281 xG) the model had quoted correctly; it is fixed and covered by a test. Failures are replaced by a safe template, so a hallucination never reaches air |
 | **RecapWriter** | Half-time and full-time recaps, casual or analytical |
-| **Localiser** | Azure AI Translator (or the model), then re-verified so names and numbers survive translation |
+| **Localiser** | The `matchroom-localiser` Foundry agent (Azure AI Translator is supported if a key is configured), then re-verified so names and numbers survive translation |
 
 ### Viewer modes (same match, different experiences)
 
@@ -210,7 +210,11 @@ Outputs: `cues.jsonl` (overlay feed), `stats.json` (team + player stats), `timel
 
 ## Built with
 
-Python · GitHub Copilot · GitHub Actions · Microsoft Foundry Agent Service · Azure OpenAI · Azure AI Speech · Azure AI Translator · Azure Event Hubs · Microsoft Fabric Real-Time Intelligence · Azure Container Apps · Bicep / Azure Developer CLI
+Python · Microsoft Foundry Agent Service · gpt-5.4-mini (Azure OpenAI in Foundry) · Azure Container Apps · Azure Container Registry · Managed identity · Application Insights + OpenTelemetry · Bicep / Azure Developer CLI · GitHub Actions
+
+## How this was built
+
+Designed, configured, deployed and tested by Sai Shankar Yalla, with AI coding assistance for parts of the implementation.
 
 ## License
 
