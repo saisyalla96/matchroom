@@ -58,7 +58,10 @@ class LiveMatch:
         self.lock = threading.Lock()
         self.frame = None
         self.events: dict[str, dict] = {}
+        self.run_id = f"{folder.name}-{int(time.time() * 1000)}"  # changes on restart or redeploy
         self.paused = False
+        self.idle = False        # paused automatically because nobody is watching
+        self.watchers = None     # callable returning seconds since the last browser poll
         self.finished = False
         self.stopped = False
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -74,7 +77,7 @@ class LiveMatch:
         match_t, wall = None, time.time()
         try:
             for t, kind, obj in stream(self.folder):
-                while self.paused and not self.stopped:
+                while (self.paused or self._nobody_watching()) and not self.stopped:
                     time.sleep(0.1)
                     wall = time.time() - (t - match_t) / self.speed if match_t is not None else time.time()
                 if self.stopped:
@@ -109,6 +112,11 @@ class LiveMatch:
             if o.pool:
                 o.pool.shutdown(wait=False)
 
+    def _nobody_watching(self) -> bool:
+        """Cost guard for the public demo: no browser has polled for 2 minutes, so stop replaying."""
+        self.idle = bool(self.watchers and self.watchers() > 120)
+        return self.idle
+
     @staticmethod
     def _ready(items, since):
         out = []
@@ -122,7 +130,7 @@ class LiveMatch:
         with self.lock:
             o, e = self.orch, self.orch.engine
             if not o.ready:
-                return {"ready": False}
+                return {"ready": False, "run_id": self.run_id}
             feeds, recaps = {}, {}
             for k in self.profiles:
                 items = []
@@ -135,7 +143,7 @@ class LiveMatch:
                 recaps[k] = [r for r in o.recaps[k][recap_cursors.get(k, 0):] if r.get("verified") is not None]
             s = e.stats()
             return {
-                "ready": True, "t": e.t, "clock": f"{int(e.t // 60)}'", "finished": self.finished,
+                "ready": True, "run_id": self.run_id, "t": e.t, "clock": f"{int(e.t // 60)}'", "finished": self.finished,
                 "paused": self.paused, "speed": self.speed, "score": s["score"], "momentum": s["momentum"],
                 "regime": s["regime"], "teams": s["teams"], "frame": self.frame,
                 "timeline": [{"m": x["minute"], "v": x["momentum"]} for x in e.timeline],
@@ -151,7 +159,13 @@ class App:
     def __init__(self, args):
         self.args = args
         self.folder = Path(args.data)
-        self.match = LiveMatch(self.folder, args.backend, args.speed, args.focus).start()
+        self.last_seen = time.time()
+        self.match = self._new(self.folder, args.speed)
+
+    def _new(self, folder, speed):
+        m = LiveMatch(folder, self.args.backend, speed, self.args.focus)
+        m.watchers = lambda: time.time() - self.last_seen
+        return m.start()
 
     def autoplay(self):
         """Public demo: after full time, wait 90 s then replay, so the URL is always showing a live match."""
@@ -160,7 +174,8 @@ class App:
             m = self.match
             if m.finished and not getattr(m, "_done_at", None):
                 m._done_at = time.time()
-            if getattr(m, "_done_at", None) and time.time() - m._done_at > 90 and m is self.match:
+            watched = time.time() - self.last_seen < 120
+            if getattr(m, "_done_at", None) and time.time() - m._done_at > 90 and m is self.match and watched:
                 self.restart()
 
     def restart(self, new_match=False):
@@ -175,8 +190,7 @@ class App:
             self.folder = Path("data") / f"live_{seed}"
             subprocess.run([sys.executable, "-m", "simulator.sim", "--seed", str(seed), "--out", str(self.folder)],
                            check=True, capture_output=True)
-        speed = self.match.speed
-        self.match = LiveMatch(self.folder, self.args.backend, speed, self.args.focus).start()
+        self.match = self._new(self.folder, self.match.speed)
 
     def meta(self):
         m = self.match.meta
@@ -207,6 +221,7 @@ def handler_for(app: App):
             if u.path == "/api/meta":
                 return self._send(200, json.dumps(app.meta()).encode())
             if u.path == "/api/state":
+                app.last_seen = time.time()
                 cur = json.loads(q.get("c", "{}"))
                 rc = json.loads(q.get("r", "{}"))
                 return self._send(200, json.dumps(app.match.state(cur, rc), ensure_ascii=False).encode("utf-8"))

@@ -169,6 +169,7 @@ const MODE_SUB = {casual:"Paced, plain-language moments", analyst:"Every insight
   player_focus:"Everything involving one player", metric:"One number, tracked all match"};
 
 let META=null, active="casual", cursors={}, rcursors={}, store={}, recaps={}, selected=null, state=null;
+let RUN=null;
 let players={}, targets={}, ballT=null, ball=null, l3Queue=[], l3Busy=false, lastRender="";
 
 /* ---------- boot ---------- */
@@ -203,6 +204,8 @@ async function poll(){
   try{
     const r = await fetch(`/api/state?c=${encodeURIComponent(JSON.stringify(cursors))}&r=${encodeURIComponent(JSON.stringify(rcursors))}`);
     const s = await r.json();
+    if (RUN && s.run_id !== RUN){ RUN=s.run_id; await resetView(); setTimeout(poll, 350); return; } // new match on the server
+    RUN = s.run_id;
     if (s.ready){ state=s; apply(s); }
   }catch(e){ $("#status").innerHTML = "<span>Connection lost. Is the server still running?</span>"; }
   setTimeout(poll, 350);
@@ -384,12 +387,12 @@ function frame(){
 const ctl = q => fetch("/api/control?"+q);
 $("#play").onclick=()=>ctl("action="+(state&&state.paused?"play":"pause"));
 $("#speed").onchange=e=>ctl("action=speed&value="+e.target.value);
-async function reset(action){
-  await ctl("action="+action);
+async function resetView(){
   cursors={}; rcursors={}; store={}; recaps={}; selected=null; targets={}; ballT=null; ball=null; l3Queue=[]; lastRender="";
   $("#feed").innerHTML=`<p class="empty">Kick-off is moments away. Moments that matter will appear here.</p>`;
   await boot();
 }
+async function reset(action){ await ctl("action="+action); RUN=null; await resetView(); }
 $("#restart").onclick=()=>reset("restart");
 $("#newmatch").onclick=async e=>{e.target.textContent="Generating…"; await reset("new"); e.target.textContent="Generate a new match";};
 
