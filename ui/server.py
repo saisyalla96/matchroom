@@ -29,6 +29,7 @@ from agents.run import Orchestrator
 from engine.replay import stream
 
 ROOT = Path(__file__).parent
+IDLE_SECONDS = float(os.getenv("MATCHROOM_IDLE_SECONDS", "30"))  # pause when no browser has polled for this long
 EVIDENCE_KEYS = ("type", "team", "x", "y", "end_x", "end_y", "outcome", "player_name", "minute")
 
 
@@ -113,8 +114,8 @@ class LiveMatch:
                 o.pool.shutdown(wait=False)
 
     def _nobody_watching(self) -> bool:
-        """Cost guard for the public demo: no browser has polled for 2 minutes, so stop replaying."""
-        self.idle = bool(self.watchers and self.watchers() > 120)
+        """Cost guard for the public demo: no browser has polled recently, so stop replaying."""
+        self.idle = bool(self.watchers and self.watchers() > IDLE_SECONDS)
         return self.idle
 
     @staticmethod
@@ -174,7 +175,7 @@ class App:
             m = self.match
             if m.finished and not getattr(m, "_done_at", None):
                 m._done_at = time.time()
-            watched = time.time() - self.last_seen < 120
+            watched = time.time() - self.last_seen < IDLE_SECONDS
             if getattr(m, "_done_at", None) and time.time() - m._done_at > 90 and m is self.match and watched:
                 self.restart()
 
