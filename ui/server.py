@@ -50,12 +50,12 @@ def make_profiles(meta: dict, focus_name: str | None) -> dict[str, Profile]:
 
 
 class LiveMatch:
-    def __init__(self, folder: Path, backend: str, speed: float, focus: str | None):
+    def __init__(self, folder: Path, backend: str, speed: float, focus: str | None, inject_faults: int = 0):
         self.folder, self.backend, self.speed = folder, backend, speed
         meta = json.loads(open(folder / "events.jsonl", encoding="utf-8").readline())
         self.meta = meta
         self.profiles = make_profiles(meta, focus)
-        self.orch = Orchestrator(self.profiles, backend)
+        self.orch = Orchestrator(self.profiles, backend, inject_faults)
         self.lock = threading.Lock()
         self.frame = None
         self.events: dict[str, dict] = {}
@@ -166,6 +166,8 @@ class LiveMatch:
                 "focus_player": self.profiles["player"].player_id,
                 "model": {"backend": o.llm.backend, "label": o.llm.label, "calls": o.llm.calls,
                           "agent_calls": o.llm.agent_calls,
+                          "faults_every": getattr(o.llm, "every", 0) if type(o.llm).__name__ == "FaultInjector" else 0,
+                          "faults_injected": getattr(o.llm, "injected", 0) if type(o.llm).__name__ == "FaultInjector" else 0,
                           "verifier_checks": getattr(getattr(o, "verifier", None), "checked", 0),
                           "verifier_blocked": getattr(getattr(o, "verifier", None), "blocked", 0)},
             }
@@ -179,7 +181,7 @@ class App:
         self.match = self._new(self.folder, args.speed)
 
     def _new(self, folder, speed):
-        m = LiveMatch(folder, self.args.backend, speed, self.args.focus)
+        m = LiveMatch(folder, self.args.backend, speed, self.args.focus, self.args.inject_faults)
         m.watchers = lambda: time.time() - self.last_seen
         return m.start()
 
@@ -267,6 +269,8 @@ def main():
     ap.add_argument("--backend", choices=["offline", "foundry", "agents"], default=None)
     ap.add_argument("--speed", type=float, default=20)
     ap.add_argument("--focus", default="Elias Castell", help="player to follow in player-focus mode")
+    ap.add_argument("--inject-faults", nargs="?", const=5, type=int, default=0, metavar="N",
+                    help="demo: corrupt every Nth AI line on purpose (default 5) to show the Verifier catching it")
     ap.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")))
     ap.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"), help="0.0.0.0 inside a container")
     a = ap.parse_args()

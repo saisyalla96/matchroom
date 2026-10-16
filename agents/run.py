@@ -30,8 +30,11 @@ from engine.replay import stream
 
 
 class Orchestrator:
-    def __init__(self, profiles: dict[str, Profile], backend: str | None = None):
+    def __init__(self, profiles: dict[str, Profile], backend: str | None = None, inject_faults: int = 0):
         self.llm = LLM(backend)
+        if inject_faults:
+            from agents.faults import FaultInjector
+            self.llm = FaultInjector(self.llm, every=inject_faults)
         self.engine = MatchEngine()
         self.profiles = profiles
         self.feeds = {k: [] for k in profiles}
@@ -42,6 +45,8 @@ class Orchestrator:
         e = self.engine
         self.teams = {t: n for t, n in zip(e.teams, (e.meta["home"]["short"], e.meta["away"]["short"]))}
         self.verifier = Verifier(e.names)
+        if type(self.llm).__name__ == "FaultInjector":
+            self.llm.roster = list(e.names.values())
         self.narrator = Narrator(self.llm, self.teams)
         self.recapper = RecapWriter(self.llm, self.teams)
         self.localiser = Localiser(self.llm)
@@ -213,6 +218,8 @@ def main():
     ap.add_argument("--player", help="player id or full name (player_focus)")
     ap.add_argument("--metric")
     ap.add_argument("--echo", help="profile key to print live (default: first)")
+    ap.add_argument("--inject-faults", nargs="?", const=5, type=int, default=0, metavar="N",
+                    help="demo: corrupt every Nth AI line on purpose (default 5) to show the Verifier catching it")
     a = ap.parse_args()
     folder = Path(a.folder)
 
@@ -224,7 +231,7 @@ def main():
         profiles = {"custom": Profile("Custom", a.mode, a.lang, a.club, pid, a.metric)}
     else:
         profiles = dict(PRESETS)
-    orch = Orchestrator(profiles, a.backend)
+    orch = Orchestrator(profiles, a.backend, a.inject_faults)
     orch.run(folder, a.speed, a.echo or next(iter(profiles)))
     out = orch.save(folder)
     v = orch.verifier

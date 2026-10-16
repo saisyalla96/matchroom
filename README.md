@@ -161,6 +161,7 @@ python -m ui.server --backend foundry     # live Microsoft Foundry model
 - **Lower-third overlays** timed from the cue feed, as they would sit on a live match feed
 - **Viewer switcher**: casual fan, analyst, away-club fan in Spanish, player focus, xG tracker. One match, five experiences
 - **Clickable evidence**: select any insight to see *why it matters*, whether it passed the Verifier, and the actual passes, shots and pressures behind it drawn on the pitch
+- **Fault injection** (`python -m ui.server --backend agents --inject-faults`): corrupts 1 in 5 real AI lines on purpose (an invented number, a player not in the moment, or the wrong script), clearly labelled on screen, to show the Verifier catching every one. Off by default, never on in the deployed demo
 - **What the Verifier stopped**: click *N blocked* in the status line to see every AI line that broke a rule: what it wrote, why it was blocked, and what aired instead
 - Momentum ribbon, live match stats, half-time and full-time recaps, replay speed, and a button to generate a fresh synthetic match
 

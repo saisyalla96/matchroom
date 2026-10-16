@@ -177,7 +177,7 @@ dialog::backdrop{background:rgba(5,10,20,.65)}
 
 <dialog id="blockedDlg" aria-labelledby="blkTitle">
   <div class="dlg-head"><h2 id="blkTitle">What the Verifier stopped</h2><button class="btn" id="blkClose">Close</button></div>
-  <div class="dlg-body"><p>Lines the AI wrote that broke a rule. None of them reached the screen: a safe line built only from verified facts aired instead.</p><div id="blkList"></div></div>
+  <div class="dlg-body"><p id="blkNote"></p><p>Lines the AI wrote that broke a rule. None of them reached the screen: a safe line built only from verified facts aired instead.</p><div id="blkList"></div></div>
 </dialog>
 <script>
 const $ = s => document.querySelector(s);
@@ -280,6 +280,9 @@ async function openBlocked(){
       <dt>Why blocked</dt><dd class="why">${b.issues.map(i=>esc(humanIssue(i))).join("<br>")}</dd>
       <dt>Aired instead</dt><dd lang="${esc(b.lang)}">${esc(b.aired)}</dd>
     </dl></div>`).join("") : `<p>Nothing blocked yet. Every AI line so far has matched the facts.</p>`;
+  $("#blkNote").textContent = state && state.model.faults_every
+    ? `Fault injection is on: 1 in ${state.model.faults_every} AI lines is corrupted on purpose to test the Verifier.` : "";
+  $("#blkNote").style.display = $("#blkNote").textContent ? "" : "none";
   $("#blockedDlg").showModal();
 }
 $("#blkClose").onclick=()=>$("#blockedDlg").close();
@@ -289,7 +292,8 @@ function renderStatus(s){
     : m.agent_calls ? `Foundry Agent Service, <b>${m.agent_calls}</b> agent calls` : `${m.label}, <b>${m.calls}</b> model calls`;
   const blk = m.verifier_blocked
     ? `<button class="linkbtn" id="blkBtn">${m.verifier_blocked} blocked</button>` : `<b>0</b> blocked`;
-  $("#status").innerHTML = `<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, ${blk}</span>`;
+  const fi = m.faults_every ? `<span style="color:var(--warn)">Fault injection on: 1 in ${m.faults_every} AI lines corrupted on purpose (${m.faults_injected} so far)</span>` : "";
+  $("#status").innerHTML = `${fi}<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, ${blk}</span>`;
   const bb=$("#blkBtn"); if(bb) bb.onclick=openBlocked;
 }
 

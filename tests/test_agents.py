@@ -125,3 +125,17 @@ class ImprovementsTest(unittest.TestCase):
     def test_favourite_fan_feed_is_paced(self):
         orch, _ = run_match({"fan": Profile(mode="casual", clubs=["NGC"]), "plain": Profile(mode="casual")})
         self.assertLess(len(orch.feeds["fan"]), len(orch.feeds["plain"]) + 12)
+
+
+class FaultInjectionTest(unittest.TestCase):
+    def test_every_injected_fault_is_blocked(self):
+        from agents.faults import FaultInjector
+        good = FakeSlowLLM()
+        inj = FaultInjector(good, every=3)
+        orch, _ = run_match({"fan": Profile(mode="analyst")}, inj)
+        self.assertGreater(inj.injected, 3)
+        blocked = [i for i in orch.feeds["fan"] if i["verified"] is False]
+        self.assertEqual(len(blocked), inj.injected)          # every corruption caught
+        self.assertTrue(all(i["fallback"] and i["rejected"] for i in blocked))
+        clean = [i for i in orch.feeds["fan"] if i["verified"]]
+        self.assertTrue(clean)                                 # and nothing honest was blocked
