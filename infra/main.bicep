@@ -1,4 +1,4 @@
-// Matchroom on Azure: Container Apps + managed identity + Application Insights.
+// Matchroom on Azure: Container Apps + managed identity + Application Insights + Foundry Agent Service access.
 // Deployed by `azd up`. No API keys: the app calls the existing Foundry model with Entra ID.
 targetScope = 'resourceGroup'
 
@@ -10,6 +10,15 @@ param location string = resourceGroup().location
 
 @description('Name of the EXISTING Foundry / Azure OpenAI resource in this resource group, e.g. matchroom-resource')
 param aiResourceName string
+
+@description('Foundry project name inside the resource (Agent Service agents live here)')
+param projectName string = 'matchroom'
+
+@description('Which AI path the app uses: agents (Foundry Agent Service, falls back to the model), foundry (model only)')
+param backend string = 'agents'
+
+@description('Built-in role "Azure AI User" (Foundry Agent Service data access)')
+param azureAiUserRoleId string = '53ca6127-db72-4b80-b1b0-d745d6d5456d'
 
 @description('Model deployment name in Foundry')
 param modelDeployment string = 'gpt-5.4-mini'
@@ -78,6 +87,16 @@ resource openAiUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+resource aiUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(ai.id, identity.id, azureAiUserRoleId)
+  scope: ai
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureAiUserRoleId)
+  }
+}
+
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-matchroom-${token}'
   location: location
@@ -101,7 +120,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
     type: 'UserAssigned'
     userAssignedIdentities: { '${identity.id}': {} }
   }
-  dependsOn: [ acrPull ]
+  dependsOn: [ acrPull, openAiUser, aiUser ]
   properties: {
     managedEnvironmentId: env.id
     configuration: {
@@ -115,7 +134,8 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
           image: empty(webImageName) ? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' : webImageName
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
-            { name: 'MATCHROOM_BACKEND', value: 'foundry' }
+            { name: 'MATCHROOM_BACKEND', value: backend }
+            { name: 'AZURE_AI_PROJECT_ENDPOINT', value: 'https://${aiResourceName}.services.ai.azure.com/api/projects/${projectName}' }
             { name: 'AZURE_OPENAI_ENDPOINT', value: 'https://${aiResourceName}.openai.azure.com/' }
             { name: 'AZURE_OPENAI_DEPLOYMENT', value: modelDeployment }
             { name: 'AZURE_OPENAI_API_VERSION', value: apiVersion }

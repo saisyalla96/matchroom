@@ -150,7 +150,8 @@ class LiveMatch:
                 "timeline": [{"m": x["minute"], "v": x["momentum"]} for x in e.timeline],
                 "feeds": feeds, "recaps": recaps,
                 "focus_player": self.profiles["player"].player_id,
-                "model": {"backend": o.llm.backend, "calls": o.llm.calls,
+                "model": {"backend": o.llm.backend, "label": o.llm.label, "calls": o.llm.calls,
+                          "agent_calls": o.llm.agent_calls,
                           "verifier_checks": getattr(getattr(o, "verifier", None), "checked", 0),
                           "verifier_blocked": getattr(getattr(o, "verifier", None), "blocked", 0)},
             }
@@ -247,7 +248,7 @@ def handler_for(app: App):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data/match_001")
-    ap.add_argument("--backend", choices=["offline", "foundry"], default=None)
+    ap.add_argument("--backend", choices=["offline", "foundry", "agents"], default=None)
     ap.add_argument("--speed", type=float, default=20)
     ap.add_argument("--focus", default="Elias Castell", help="player to follow in player-focus mode")
     ap.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")))

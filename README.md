@@ -95,10 +95,34 @@ half / full time ──► RecapWriter ──► Verifier ──► Localiser �
 python -m agents.run data/match_001                                         # 3 preset viewers
 python -m agents.run data/match_001 --mode player_focus --player "Elias Castell"
 python -m agents.run data/match_001 --mode metric --metric xg --club NGC
-MATCHROOM_BACKEND=foundry python -m agents.run data/match_001 --lang es     # live model (see .env.example)
+python -m agents.run data/match_001 --backend agents --lang es     # Foundry agents (see .env.example)
 ```
 
 Feeds land in `data/<match>/feeds/<viewer>.jsonl`. Each item has timing, text, language, a `verified` flag, and evidence event IDs.
+
+## Running on Microsoft Foundry Agent Service
+
+The three AI roles are **versioned Foundry agents** (Build > Agents in the Foundry portal):
+
+| Foundry agent | Role |
+|---|---|
+| `matchroom-narrator` | Live on-screen lines for one viewer: mode, language, club perspective |
+| `matchroom-recap-writer` | Half-time and full-time recaps |
+| `matchroom-localiser` | Translation that keeps names and numbers exact |
+
+```bash
+python -m agents.foundry                    # create/update the agents and test each one
+python -m ui.server --backend agents        # run the studio on the agents
+```
+
+A new agent version is created only when its instructions or model change (a hash is stored in the agent's
+metadata), so the deployed app safely registers them at start-up. If the Agent Service can't be reached, the app
+falls back to calling the model directly, and if that fails too, to the Verifier-safe templates. The broadcast never stops.
+
+**Tracing.** Every on-screen line is one trace in Application Insights: a `matchroom.utterance` span (viewer, cue,
+evidence count, **Verifier result and any issues**, final text) containing the `invoke_agent matchroom-narrator` span
+(OpenTelemetry GenAI attributes: agent name and version, model, token usage, latency). Connect the Application Insights
+resource to the Foundry project (Agents > Traces > Connect) to browse them in Foundry.
 
 ## Matchroom Studio (live web UI)
 
@@ -171,7 +195,7 @@ Design principle: **the engine computes, the agents communicate.** LLM agents ne
 - [ ] Live Foundry run and prompt tuning
 - [x] Live web UI: pitch, overlays, five viewer modes, clickable evidence
 - [x] Azure deployment: Bicep + `azd up`, Container Apps, managed identity, App Insights
-- [ ] Foundry agent registration + tracing
+- [x] Foundry Agent Service agents (versioned) + OpenTelemetry tracing to Application Insights
 - [ ] Demo video
 
 ## Built with

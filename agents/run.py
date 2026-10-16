@@ -21,6 +21,7 @@ import json
 import time
 from pathlib import Path
 
+from agents import telemetry
 from agents.agents import Localiser, Narrator, Personaliser, RecapWriter, Verifier
 from agents.llm import LLM
 from agents.profiles import PRESETS, Profile
@@ -52,8 +53,18 @@ class Orchestrator:
         self.ready = True
 
     # ---- one grounded utterance
-    def _say(self, facts, draft_fn, safe_fn, lang):
-        """draft -> verify -> (fallback template -> translate -> verify). Never raises."""
+    def _say(self, facts, draft_fn, safe_fn, lang, **ctx):
+        """One traced utterance: draft -> verify -> (fallback template -> translate -> verify). Never raises."""
+        with telemetry.span("matchroom.utterance", **{f"matchroom.{k}": v for k, v in ctx.items()},
+                            **{"matchroom.language": lang}) as sp:
+            out = self._say_inner(facts, draft_fn, safe_fn, lang)
+            text, text_lang, fallback, issues = out
+            telemetry.set_attrs(sp, **{"matchroom.verified": not issues, "matchroom.fallback": fallback,
+                                       "matchroom.verifier_issues": "; ".join(issues) or None,
+                                       "matchroom.output_language": text_lang, "matchroom.text": text})
+            return out
+
+    def _say_inner(self, facts, draft_fn, safe_fn, lang):
         text, text_lang, fallback, issues = None, "en", False, []
         try:
             text, text_lang = draft_fn()
@@ -105,7 +116,9 @@ class Orchestrator:
         def job():
             text, lang, fb, issues = self._say(
                 facts, lambda: self.narrator.write(cue, p),
-                lambda: self.narrator.template(cue, p), p.language)
+                lambda: self.narrator.template(cue, p), p.language,
+                viewer=k, mode=p.mode, cue_kind=cue["kind"], clock=cue["clock"], cue_id=cue["cue_id"],
+                evidence_events=len(cue["explain"]["evidence_event_ids"]))
             item.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
             if k == self.echo:
                 flag = "" if not issues else "  [verifier: " + "; ".join(issues) + "]"
@@ -127,7 +140,7 @@ class Orchestrator:
                     return r["text"], r["lang"]
 
                 text, lang, fb, issues = self._say(facts, draft, lambda: self.recapper.template(facts, p),
-                                                   p.language)
+                                                   p.language, viewer=k, mode=p.mode, cue_kind="recap", clock=label)
                 rec.update(text=text, lang=lang, verified=not issues, fallback=fb, issues=issues)
                 if k == self.echo:
                     self._print(f"\n=== {label} recap [{k}] ===\n{text}\n")
@@ -188,7 +201,7 @@ class Orchestrator:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("folder")
-    ap.add_argument("--backend", choices=["offline", "foundry"])
+    ap.add_argument("--backend", choices=["offline", "foundry", "agents"])
     ap.add_argument("--speed", type=float, default=0)
     ap.add_argument("--mode", choices=["casual", "analyst", "player_focus", "metric"])
     ap.add_argument("--lang", default="en")
@@ -215,7 +228,7 @@ def main():
     for k, items in orch.feeds.items():
         print(f"  {k:<18} {len(items):>3} on-screen items, {len(orch.recaps[k])} recaps")
     print(f"Verifier: {v.checked} checks, {v.blocked} blocked and replaced with safe templates")
-    if orch.llm.backend == "foundry":
+    if orch.llm.backend in ("foundry", "agents"):
         print(orch.llm.summary())
         print(f"Total run time: {orch.wall_seconds:.0f} s")
 

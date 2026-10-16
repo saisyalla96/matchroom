@@ -11,9 +11,9 @@ from simulator.sim import Sim, write
 
 class FakeHallucinatingLLM:
     """Pretends to be the cloud model but invents a number on every call."""
-    online, calls, latency_ms = True, 0, 0.0
+    online, calls, latency_ms, agent_calls, label = True, 0, 0.0, 0, 'fake'
 
-    def json(self, system, payload, max_tokens=300):
+    def json(self, system, payload, max_tokens=300, agent=None):
         self.calls += 1
         return {"text": "An incredible 97 metre solo run!", "title": "x"}
 
@@ -68,13 +68,13 @@ if __name__ == "__main__":
 
 class FakeSlowLLM:
     """Online fake: 0.2 s per call, echoes the headline (grounded), counts concurrency."""
-    online, calls, latency_ms, backend = True, 0, 0.0, "fake"
+    online, calls, latency_ms, backend, agent_calls, label = True, 0, 0.0, "fake", 0, "fake"
 
     def __init__(self):
         import threading
         self.lock, self.active, self.peak = threading.Lock(), 0, 0
 
-    def json(self, system, payload, max_tokens=300):
+    def json(self, system, payload, max_tokens=300, agent=None):
         import time
         with self.lock:
             self.active += 1

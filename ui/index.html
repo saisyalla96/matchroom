@@ -244,7 +244,8 @@ function renderScore(s){
 }
 function renderStatus(s){
   const m=s.model;
-  const src = m.backend==="foundry" ? `Microsoft Foundry, <b>${m.calls}</b> model calls` : "Offline templates";
+  const src = m.backend==="offline" ? "Offline templates"
+    : m.agent_calls ? `Foundry Agent Service, <b>${m.agent_calls}</b> agent calls` : `${m.label}, <b>${m.calls}</b> model calls`;
   $("#status").innerHTML = `<span>${src}</span><span>Verifier <b>${m.verifier_checks}</b> checks, <b>${m.verifier_blocked}</b> blocked</span>`;
 }
 

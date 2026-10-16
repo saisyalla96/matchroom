@@ -292,7 +292,7 @@ class Narrator:
         """Returns (text, language). Online: written directly in the viewer's language."""
         if self.llm.online:
             viewer = {"mode": p.mode, "clubs": [self.teams.get(c, c) for c in p.clubs], "metric": p.metric}
-            r = self.llm.json(NARRATOR_SYSTEM, {"viewer": viewer, "language": p.language,
+            r = self.llm.json(NARRATOR_SYSTEM, agent="matchroom-narrator", payload={"viewer": viewer, "language": p.language,
                                                 "perspective": self.perspective(cue, p),
                                                 "teams": self.teams, "facts": self.facts(cue)})
             return r["text"].strip(), p.language
@@ -343,13 +343,14 @@ class Narrator:
 
 
 # -------------------------------------------------------------- RecapWriter
-RECAP_SYSTEM = """You write {label} recaps for a football studio. Audience mode: {mode}.
+RECAP_SYSTEM = """You write match recaps for a football studio. `label` says which recap (Half-time or Full-time)
+and `viewer.mode` says the audience.
 casual: 60-90 words, story first, simple language. analyst: 90-130 words, tactical, cite metrics.
 If the viewer has favourite clubs, frame the story from their side but stay accurate.
 Write in the language `language` (BCP-47), using only that language's own script; keep names and numbers exact.
 Use ONLY the facts provided; never invent numbers, players or events, and do not mention weather, crowd,
 time of day, venue or anything else not in the facts.
-Return JSON: {{"title": "...", "text": "..."}}"""
+Return JSON: {"title": "...", "text": "..."}"""
 
 
 class RecapWriter:
@@ -368,9 +369,9 @@ class RecapWriter:
     def write(self, label, stats, cues, p: Profile) -> dict:
         f = self.facts(label, stats, cues)
         if self.llm.online:
-            r = self.llm.json(RECAP_SYSTEM.format(label=label, mode=p.mode),
-                              {"viewer": {"mode": p.mode, "clubs": [self.teams.get(c, c) for c in p.clubs]},
-                               "language": p.language, "facts": f}, max_tokens=500)
+            r = self.llm.json(RECAP_SYSTEM,
+                              {"label": label, "viewer": {"mode": p.mode, "clubs": [self.teams.get(c, c) for c in p.clubs]},
+                               "language": p.language, "facts": f}, max_tokens=500, agent="matchroom-recap-writer")
             return {"title": r.get("title", label), "text": r["text"], "facts": f, "lang": p.language}
         return {"title": label, "text": self.template(f, p), "facts": f, "lang": "en"}
 
@@ -421,5 +422,5 @@ class Localiser:
             with urllib.request.urlopen(req, timeout=10) as r:
                 return json.load(r)[0]["translations"][0]["text"], lang
         if self.llm.online:
-            return self.llm.json(LOCALISE_SYSTEM, {"lang": lang, "text": text})["text"], lang
+            return self.llm.json(LOCALISE_SYSTEM, {"lang": lang, "text": text}, agent="matchroom-localiser")["text"], lang
         return text, "en"  # offline: no translation available
