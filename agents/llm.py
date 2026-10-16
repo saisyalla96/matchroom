@@ -56,13 +56,17 @@ class LLM:
         self.last_error = None
         self.latencies: list[float] = []
         self.throttled = 0  # HTTP 429 responses (quota / rate limit)
+        self.transient = 0  # 5xx / connection / timeout errors that were retried
+        self._tripped_at = 0.0
         self._lock = threading.Lock()
         self._dropped: set[str] = set()   # request params this model rejected
 
     @property
     def online(self) -> bool:
-        # after 3 consecutive failures, stop calling the model for this run (live broadcast safety)
-        return self.backend == "foundry" and self.failures < 3
+        # circuit breaker: after 3 failures in a row, pause model calls for 30 s, then try again
+        if self.backend != "foundry":
+            return False
+        return self.failures < 3 or time.time() - self._tripped_at > 30
 
     def _params(self, max_tokens: int) -> dict:
         reasoning = self.deployment.lower().startswith(("gpt-5", "o1", "o3", "o4"))
@@ -106,6 +110,14 @@ class LLM:
                     pass
                 time.sleep(min(wait, 10))
                 continue
+            except (openai.InternalServerError, openai.APIConnectionError, openai.APITimeoutError) as ex:
+                with self._lock:
+                    self.transient += 1
+                if _ < 2:  # Azure occasionally returns 500/503; a short retry almost always succeeds
+                    time.sleep(0.8 * (_ + 1))
+                    continue
+                self._fail(ex)
+                raise
             except openai.BadRequestError as ex:
                 msg = str(ex)
                 bad = next((k for k in ("reasoning_effort", "temperature", "response_format",
@@ -126,6 +138,8 @@ class LLM:
         xs = sorted(self.latencies)
         p50, p95 = xs[len(xs) // 2], xs[min(len(xs) - 1, int(len(xs) * 0.95))]
         msg = f"Model: {self.calls} calls, median {p50 / 1000:.1f} s, p95 {p95 / 1000:.1f} s"
+        if self.transient:
+            msg += f", {self.transient} transient Azure errors retried"
         if self.throttled:
             msg += (f", {self.throttled} rate-limited (HTTP 429): raise the deployment's "
                     f"tokens-per-minute limit in Foundry")
@@ -137,4 +151,5 @@ class LLM:
             print(f"\n[model] first error: {ex.__class__.__name__}: {str(ex)[:400]}\n")
         self.last_error = ex
         if self.failures == 3:
-            print("[model] 3 failures in a row: switching to safe templates for the rest of this run\n")
+            self._tripped_at = time.time()
+            print("[model] 3 failures in a row: using safe templates for 30 s, then retrying the model\n")

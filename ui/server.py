@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -152,7 +153,22 @@ class App:
         self.folder = Path(args.data)
         self.match = LiveMatch(self.folder, args.backend, args.speed, args.focus).start()
 
+    def autoplay(self):
+        """Public demo: after full time, wait 90 s then replay, so the URL is always showing a live match."""
+        while True:
+            time.sleep(5)
+            m = self.match
+            if m.finished and not getattr(m, "_done_at", None):
+                m._done_at = time.time()
+            if getattr(m, "_done_at", None) and time.time() - m._done_at > 90 and m is self.match:
+                self.restart()
+
     def restart(self, new_match=False):
+        now = time.time()
+        if new_match and now - getattr(self, "_last_new", 0) < 60:
+            new_match = False  # public demo guard: at most one freshly generated match per minute
+        if new_match:
+            self._last_new = now
         self.match.stopped = True
         if new_match:
             seed = random.randint(100, 9999)
@@ -218,12 +234,13 @@ def main():
     ap.add_argument("--backend", choices=["offline", "foundry"], default=None)
     ap.add_argument("--speed", type=float, default=20)
     ap.add_argument("--focus", default="Elias Castell", help="player to follow in player-focus mode")
-    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")))
+    ap.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"), help="0.0.0.0 inside a container")
     a = ap.parse_args()
-    import os
     a.backend = a.backend or os.getenv("MATCHROOM_BACKEND", "offline")
     app = App(a)
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), handler_for(app))
+    srv = ThreadingHTTPServer((a.host, a.port), handler_for(app))
+    threading.Thread(target=app.autoplay, daemon=True).start()
     print(f"Matchroom Studio running at http://localhost:{a.port}  (backend: {a.backend}, {a.speed:g}x speed)")
     print("Press Ctrl+C to stop.")
     try:

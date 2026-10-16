@@ -115,6 +115,20 @@ python -m ui.server --backend foundry     # live Microsoft Foundry model
 
 Standard library only; no build step.
 
+## Deploy to Azure (one command)
+
+```bash
+azd auth login
+azd env new matchroom
+azd env set AZURE_RESOURCE_GROUP rg-matchroom        # resource group that holds your Foundry resource
+azd env set AI_RESOURCE_NAME matchroom-resource      # the Foundry / Azure OpenAI resource name
+azd up
+```
+
+`infra/main.bicep` creates Azure Container Apps, Container Registry (remote build, no local Docker needed),
+a user-assigned **managed identity** with *Cognitive Services OpenAI User* on the Foundry resource (no API
+keys in the cloud), Log Analytics and Application Insights. The public URL is printed at the end.
+
 ## Quick start
 
 The core pipeline needs only Python 3.10+. For the Foundry backend, run `pip install -r requirements.txt` and copy `.env.example` to `.env`.
@@ -156,7 +170,8 @@ Design principle: **the engine computes, the agents communicate.** LLM agents ne
 - [x] Agent team: Personaliser, Narrator, Verifier, RecapWriter, Localiser (offline mode + Foundry backend)
 - [ ] Live Foundry run and prompt tuning
 - [x] Live web UI: pitch, overlays, five viewer modes, clickable evidence
-- [ ] Azure deployment (Bicep / `azd up`), Event Hubs, Fabric RTI, App Insights tracing
+- [x] Azure deployment: Bicep + `azd up`, Container Apps, managed identity, App Insights
+- [ ] Foundry agent registration + tracing
 - [ ] Demo video
 
 ## Built with

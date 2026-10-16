@@ -1,0 +1,10 @@
+# Azure Developer CLI: `azd up` provisions infra/main.bicep and deploys the web app.
+name: matchroom
+services:
+  web:
+    project: .
+    language: docker
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      remoteBuild: true

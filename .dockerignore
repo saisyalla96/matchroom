@@ -1,0 +1,6 @@
+.git
+.env
+**/__pycache__
+data/eval
+data/live_*
+data/match_001/feeds
